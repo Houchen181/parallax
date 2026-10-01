@@ -1,0 +1,89 @@
+{
+  "name": "parallax",
+  "description": "Parallax: ask several AI models at once, or let them discuss, from Claude Code.",
+  "owner": {
+    "name": "Houchen181"
+  },
+  "plugins": [
+    {
+      "name": "parallax",
+      "source": "./plugins/parallax",
+      "version": "0.4.0",
+      "description": "Ask Claude, GPT, Gemini, OpenRouter and local models the same question side by side, or have them discuss it, with your own API keys.",
+      "author": {
+        "name": "Houchen181",
+        "url": "https://github.com/Houchen181"
+      },
+      "homepage": "https://github.com/Houchen181/parallax#use-parallax-in-claude-and-codex",
+      "repository": "https://github.com/Houchen181/parallax",
+      "license": "MIT",
+      "keywords": [
+        "multi-model",
+        "second-opinion",
+        "compare",
+        "debate",
+        "openai",
+        "gemini",
+        "openrouter",
+        "ollama"
+      ],
+      "mcpServers": {
+        "parallax": {
+          "command": "node",
+          "args": [
+            "${CLAUDE_PLUGIN_ROOT}/server/parallax-mcp.cjs"
+          ],
+          "env": {
+            "PARALLAX_ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}",
+            "PARALLAX_OPENAI_API_KEY": "${user_config.openai_api_key}",
+            "PARALLAX_GEMINI_API_KEY": "${user_config.gemini_api_key}",
+            "PARALLAX_OPENROUTER_API_KEY": "${user_config.openrouter_api_key}",
+            "PARALLAX_DEFAULT_MODELS": "${user_config.default_models}",
+            "PARALLAX_WAIT_SECONDS": "240"
+          }
+        }
+      },
+      "userConfig": {
+        "anthropic_api_key": {
+          "type": "string",
+          "title": "Anthropic API key",
+          "description": "Optional. For Claude models through the Anthropic API (console.anthropic.com). You can also add keys later with the configure_keys tool.",
+          "sensitive": true,
+          "required": false,
+          "default": ""
+        },
+        "openai_api_key": {
+          "type": "string",
+          "title": "OpenAI API key",
+          "description": "Optional. For GPT models through the OpenAI API (platform.openai.com).",
+          "sensitive": true,
+          "required": false,
+          "default": ""
+        },
+        "gemini_api_key": {
+          "type": "string",
+          "title": "Google Gemini API key",
+          "description": "Optional. For Gemini models (aistudio.google.com/apikey).",
+          "sensitive": true,
+          "required": false,
+          "default": ""
+        },
+        "openrouter_api_key": {
+          "type": "string",
+          "title": "OpenRouter API key",
+          "description": "Optional. One key for hundreds of models from many labs (openrouter.ai/keys).",
+          "sensitive": true,
+          "required": false,
+          "default": ""
+        },
+        "default_models": {
+          "type": "string",
+          "title": "Default models",
+          "description": "Optional. Models to ask when none are named, as provider:model ids separated by commas, e.g. anthropic:claude-opus-5-5, openai:gpt-5",
+          "required": false,
+          "default": ""
+        }
+      }
+    }
+  ]
+}

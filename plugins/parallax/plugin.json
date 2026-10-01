@@ -1,0 +1,35 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "parallax",
+  "version": "0.4.0",
+  "description": "Ask Claude, GPT, Gemini, OpenRouter and local models the same question side by side, or have them discuss it, with your own API keys.",
+  "author": {
+    "name": "Houchen181",
+    "url": "https://github.com/Houchen181"
+  },
+  "homepage": "https://github.com/Houchen181/parallax#use-parallax-in-claude-and-codex",
+  "repository": "https://github.com/Houchen181/parallax",
+  "license": "MIT",
+  "keywords": ["multi-model", "second-opinion", "compare", "debate", "anthropic", "gemini", "openrouter", "ollama"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Parallax",
+        "shortDescription": "Ask several AI models at once, or let them discuss",
+        "longDescription": "Parallax sends a prompt to Claude, GPT, Gemini, OpenRouter, Ollama and other models in parallel and brings every answer back, or runs a group discussion where the models reply to each other. It uses your own API keys, which stay on your computer: add them with the configure_keys tool, which opens a page in your browser.",
+        "developerName": "Houchen181",
+        "category": "Productivity",
+        "capabilities": ["Read"],
+        "websiteURL": "https://github.com/Houchen181/parallax",
+        "defaultPrompt": [
+          "Ask Claude and Gemini for a second opinion on this plan with Parallax.",
+          "Use Parallax to have two models debate the trade-offs here.",
+          "Set up my API keys for Parallax."
+        ],
+        "brandColor": "#7C5CFF",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      }
+    }
+  }
+}

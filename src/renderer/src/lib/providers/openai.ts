@@ -29,7 +29,7 @@ interface StreamChunk {
 function connectionError(provider: ProviderConfig, err: unknown): ProviderError {
   const reason = err instanceof Error ? err.message : String(err)
   const hint =
-    runtime === 'web'
+    runtime === 'web' && typeof window !== 'undefined'
       ? ' The provider may not allow requests from a web page; the desktop app does not have this limit.'
       : ''
   return new ProviderError(`Could not reach ${provider.baseUrl}: ${reason}.${hint}`)

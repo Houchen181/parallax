@@ -210,6 +210,8 @@ export async function startLocalServer(options: LocalServerOptions): Promise<Loc
       const providerId = String(body.providerId ?? '')
       switch (`${req.method} ${route}`) {
         case 'GET keys':
+          // The plugin's key page may have changed the shared file.
+          await options.keys.refresh()
           return sendJson(res, 200, options.keys.list())
         case 'POST keys':
           await options.keys.set(providerId, String(body.key ?? ''), String(body.baseUrl ?? ''))
@@ -218,6 +220,7 @@ export async function startLocalServer(options: LocalServerOptions): Promise<Loc
           await options.keys.remove(providerId)
           return sendJson(res, 200, {})
         case 'POST proxy':
+          await options.keys.refresh()
           return await proxy(res, body as unknown as HttpRequest)
         case 'GET chatgpt/api-base':
           return sendJson(res, 200, { apiBase: options.chatgpt.apiBaseUrl })

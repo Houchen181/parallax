@@ -1,6 +1,7 @@
-// Pieces shared by the two local back ends: the Electron main process (desktop
-// app) and the local web server (`npm run serve`). Both keep API keys and
-// ChatGPT tokens out of the UI and attach them to outgoing requests themselves.
+// Pieces shared by the local back ends: the Electron main process (desktop
+// app), the local web server (`npm run serve`) and the plugin's MCP server.
+// They keep API keys and ChatGPT tokens out of the UI and the chat, and attach
+// them to outgoing requests themselves.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { HttpRequest, SavedKeyInfo } from '../shared/bridge'
@@ -32,17 +33,28 @@ export class KeyStore {
     }
   }
 
-  private persist(): Promise<void> {
-    const snapshot = JSON.stringify(this.keys, null, 2)
-    this.writes = this.writes
-      .catch(() => undefined)
-      .then(async () => {
-        await mkdir(dirname(this.file), { recursive: true })
-        const tmp = `${this.file}.tmp`
-        await writeFile(tmp, snapshot, { mode: 0o600 })
-        await rename(tmp, this.file)
-      })
+  // Reads and writes run one at a time. The local web version and the plugin
+  // share one file, so each change re-reads it first to keep the other's edits.
+  private queue(task: () => Promise<void>): Promise<void> {
+    this.writes = this.writes.catch(() => undefined).then(task)
     return this.writes
+  }
+
+  /** Picks up changes another Parallax process made to the file. */
+  refresh(): Promise<void> {
+    return this.queue(() => this.load())
+  }
+
+  private update(change: (keys: Record<string, StoredKey>) => void): Promise<void> {
+    return this.queue(async () => {
+      await this.load()
+      change(this.keys)
+      const snapshot = JSON.stringify(this.keys, null, 2)
+      await mkdir(dirname(this.file), { recursive: true })
+      const tmp = `${this.file}.${process.pid}.tmp`
+      await writeFile(tmp, snapshot, { mode: 0o600 })
+      await rename(tmp, this.file)
+    })
   }
 
   list(): SavedKeyInfo[] {
@@ -52,14 +64,22 @@ export class KeyStore {
   async set(providerId: string, key: string, baseUrl: string): Promise<void> {
     if (typeof providerId !== 'string' || !providerId) throw new Error('Missing provider id')
     if (typeof key !== 'string' || !key.trim()) throw new Error('The API key is empty')
-    const origin = new URL(baseUrl).origin
-    this.keys[providerId] = { ...this.seal(key.trim()), origin }
-    await this.persist()
+    const sealed = { ...this.seal(key.trim()), origin: new URL(baseUrl).origin }
+    await this.update((keys) => {
+      keys[providerId] = sealed
+    })
   }
 
   async remove(providerId: string): Promise<void> {
-    delete this.keys[providerId]
-    await this.persist()
+    await this.update((keys) => {
+      delete keys[providerId]
+    })
+  }
+
+  /** The key saved for a provider and the origin it is locked to, if any. */
+  saved(providerId: string): { key: string; origin: string } | undefined {
+    const stored = this.keys[providerId]
+    return stored ? { key: this.unseal(stored), origin: stored.origin } : undefined
   }
 
   /** The key for a request to `url`; refuses any origin other than the one it was saved for. */

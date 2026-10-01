@@ -1,10 +1,13 @@
 // Turns a session's history into the message list one model should see.
 import type { ChatTurn } from './providers/types'
-import type { Message, Participant, Session, Settings } from './types'
+import type { GroupSettings, Message, Participant, Session, Settings } from './types'
 
 const usable = (m: Message) => m.content.trim().length > 0 && m.status !== 'error' && m.status !== 'refused'
 
-export function systemPromptFor(session: Session, participant: Participant, settings: Settings): string | undefined {
+/** The settings a system prompt depends on (the plugin passes just these). */
+export type PromptSettings = Pick<Settings, 'defaultSystemPrompt'> & { group: Pick<GroupSettings, 'announceRoster'> }
+
+export function systemPromptFor(session: Session, participant: Participant, settings: PromptSettings): string | undefined {
   const parts = [
     (session.systemPrompt ?? '').trim() || settings.defaultSystemPrompt.trim(),
     (participant.systemPrompt ?? '').trim(),

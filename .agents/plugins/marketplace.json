@@ -1,0 +1,20 @@
+{
+  "name": "parallax",
+  "interface": {
+    "displayName": "Parallax"
+  },
+  "plugins": [
+    {
+      "name": "parallax",
+      "source": {
+        "source": "local",
+        "path": "./plugins/parallax"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

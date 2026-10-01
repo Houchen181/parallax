@@ -1,0 +1,93 @@
+{
+  "manifest_version": "0.3",
+  "name": "parallax",
+  "display_name": "Parallax",
+  "version": "0.4.0",
+  "description": "Ask Claude, GPT, Gemini, OpenRouter and local models the same question side by side, or have them discuss it, with your own API keys.",
+  "long_description": "Parallax sends one prompt to several AI models in parallel and brings every answer back, or runs a group discussion where the models take turns replying to each other.\n\nIt works with Anthropic, OpenAI, Google Gemini, OpenRouter, xAI, DeepSeek, Groq, Mistral, Together AI, Ollama, LM Studio and any OpenAI-compatible server. Enter keys in this extension's settings, or ask Claude to run **configure_keys**, which opens a page in your browser for the other providers. Keys stay on your computer and are only sent to their provider.",
+  "author": {
+    "name": "Houchen181",
+    "url": "https://github.com/Houchen181"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Houchen181/parallax.git"
+  },
+  "homepage": "https://github.com/Houchen181/parallax#use-parallax-in-claude-and-codex",
+  "documentation": "https://github.com/Houchen181/parallax#use-parallax-in-claude-and-codex",
+  "support": "https://github.com/Houchen181/parallax/issues",
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "server/parallax-mcp.cjs",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/parallax-mcp.cjs"],
+      "env": {
+        "PARALLAX_ANTHROPIC_API_KEY": "${user_config.anthropic_api_key}",
+        "PARALLAX_OPENAI_API_KEY": "${user_config.openai_api_key}",
+        "PARALLAX_GEMINI_API_KEY": "${user_config.gemini_api_key}",
+        "PARALLAX_OPENROUTER_API_KEY": "${user_config.openrouter_api_key}",
+        "PARALLAX_DEFAULT_MODELS": "${user_config.default_models}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "list_models", "description": "Show the providers and models Parallax can use with your keys." },
+    { "name": "ask_models", "description": "Send one prompt to several models at once and get every answer back." },
+    { "name": "group_discussion", "description": "Have several models take turns discussing a topic." },
+    { "name": "get_results", "description": "Collect answers from a job that was still running." },
+    { "name": "configure_keys", "description": "Open a page in your browser to add or remove API keys." }
+  ],
+  "tools_generated": false,
+  "keywords": ["multi-model", "second-opinion", "compare", "debate", "openai", "gemini", "openrouter", "ollama"],
+  "license": "MIT",
+  "privacy_policies": [
+    "https://www.anthropic.com/legal/privacy",
+    "https://openai.com/policies/privacy-policy/",
+    "https://policies.google.com/privacy",
+    "https://openrouter.ai/privacy"
+  ],
+  "compatibility": {
+    "platforms": ["win32", "darwin", "linux"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  },
+  "user_config": {
+    "anthropic_api_key": {
+      "type": "string",
+      "title": "Anthropic API key",
+      "description": "Optional. For Claude models through the Anthropic API (console.anthropic.com).",
+      "sensitive": true,
+      "required": false
+    },
+    "openai_api_key": {
+      "type": "string",
+      "title": "OpenAI API key",
+      "description": "Optional. For GPT models through the OpenAI API (platform.openai.com).",
+      "sensitive": true,
+      "required": false
+    },
+    "gemini_api_key": {
+      "type": "string",
+      "title": "Google Gemini API key",
+      "description": "Optional. For Gemini models (aistudio.google.com/apikey).",
+      "sensitive": true,
+      "required": false
+    },
+    "openrouter_api_key": {
+      "type": "string",
+      "title": "OpenRouter API key",
+      "description": "Optional. One key for hundreds of models from many labs (openrouter.ai/keys).",
+      "sensitive": true,
+      "required": false
+    },
+    "default_models": {
+      "type": "string",
+      "title": "Default models",
+      "description": "Optional. Models to ask when none are named, as provider:model ids separated by commas, e.g. anthropic:claude-opus-5-5, openai:gpt-5",
+      "required": false
+    }
+  }
+}

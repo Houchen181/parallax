@@ -24,7 +24,20 @@ export function isAbortError(err: unknown): boolean {
   )
 }
 
+export type Transport = (url: string, options: HttpOptions) => Promise<Response>
+
+let transport: Transport | null = null
+
+/**
+ * Replaces the network layer. The Parallax plugin (an MCP server running in
+ * Node) reuses the provider adapters and attaches API keys itself.
+ */
+export function setTransport(next: Transport | null) {
+  transport = next
+}
+
 export function httpFetch(url: string, options: HttpOptions = {}): Promise<Response> {
+  if (transport) return transport(url, options)
   return bridge ? desktopFetch(url, options) : webFetch(url, options)
 }
 

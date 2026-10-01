@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.png binary
 *.ico binary
+
+# The plugin's bundled server is generated (npm run build:plugin); CI checks it is up to date.
+plugins/parallax/server/* -diff linguist-generated=true

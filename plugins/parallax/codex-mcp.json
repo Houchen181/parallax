@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "parallax": {
+      "command": "node",
+      "args": [
+        "./server/parallax-mcp.cjs"
+      ],
+      "cwd": "."
+    }
+  }
+}
