@@ -348,9 +348,13 @@ export class ChatGPTAuth {
   /**
    * Runs one browser sign-in for the account behind `providerId`. The first
    * sign-in registers Parallax as an agent and returns an issued client id;
-   * later ones reuse it. `enablePlan` asks again for plan-usage consent.
+   * later ones reuse it. `enablePlan` asks again for plan-usage consent, and
+   * `openUrl` replaces the default way of opening the authorization page.
    */
-  async signIn(providerId: string, options: { enablePlan?: boolean } = {}): Promise<ChatGPTSignInResult> {
+  async signIn(
+    providerId: string,
+    options: { enablePlan?: boolean; openUrl?: (url: string) => Promise<void> } = {},
+  ): Promise<ChatGPTSignInResult> {
     this.pending?.cancel()
     const record = this.data.accounts[providerId]
     const savedClient = record?.clientId
@@ -405,7 +409,7 @@ export class ChatGPTAuth {
       .join('&')
 
     try {
-      await this.deps.openUrl(`${doc.authorization_endpoint}?${query}`)
+      await (options.openUrl ?? this.deps.openUrl)(`${doc.authorization_endpoint}?${query}`)
       const callback = await loopback.result
 
       const error = callback.get('error')

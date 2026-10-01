@@ -58,7 +58,8 @@ export const CHATGPT_SIGN_IN_REQUIRED = 'chatgpt_sign_in_required'
 export const CHATGPT_PLAN_NOT_ENABLED = 'chatgpt_plan_not_enabled'
 
 export interface ParallaxBridge {
-  isDesktop: true
+  /** desktop = the Electron app; local = the web app served by `npm run serve` on this computer. */
+  runtime: 'desktop' | 'local'
   platform: string
   versions: { electron: string; chrome: string; node: string }
   keys: {

@@ -30,7 +30,8 @@ export default defineConfig(({ mode }) => {
   const web = mode === 'web'
   return {
     root: resolve(import.meta.dirname, 'src/renderer'),
-    base: web ? (process.env.BASE_PATH ?? '/parallax/') : './',
+    // Relative asset paths work on GitHub Pages, from the local server and from file://.
+    base: process.env.BASE_PATH ?? './',
     plugins: [react(), tailwindcss(), contentSecurityPolicy(mode)],
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),

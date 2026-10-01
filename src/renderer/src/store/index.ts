@@ -4,7 +4,7 @@ import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
 import type { ChatGPTAccount } from '../../../shared/bridge'
 import { listSavedKeys, removeKey } from '../lib/keys'
-import { bridge, isDesktop, newId } from '../lib/platform'
+import { bridge, hasBackend, newId } from '../lib/platform'
 import { autoTitle } from '../lib/prompt'
 import {
   DEMO_PROVIDER_ID,
@@ -134,7 +134,7 @@ export function providerProblem(state: ReadinessState, provider: ProviderConfig 
   if (!provider.enabled) return `${provider.name} is turned off in Settings → Providers.`
   if (provider.kind === 'demo') return state.settings.features.demoProvider ? null : 'The demo provider is turned off in Settings → Features.'
   if (provider.kind === 'chatgpt') {
-    if (!isDesktop) return 'Signing in with ChatGPT needs the Parallax desktop app.'
+    if (!hasBackend) return 'Sign in with ChatGPT works in the desktop app or when Parallax runs on your computer. See Settings → Providers → ChatGPT plan.'
     const account = state.chatgptAccounts[provider.id]
     if (!account?.signedIn) {
       return account?.needsSignIn
@@ -310,7 +310,7 @@ export const useStore = create<AppState>()(
           group: { ...DEFAULT_SETTINGS.group, ...state.settings.group },
         }
         // Installs from before Sign in with ChatGPT existed get its provider once.
-        if (isDesktop && !settings.chatgptOffered) {
+        if (!settings.chatgptOffered) {
           const preset = PRESETS.find((p) => p.kind === 'chatgpt')
           if (preset && !providers.some((p) => p.kind === 'chatgpt')) {
             const provider = providerFromPreset(preset, providers.some((p) => p.id === preset.id) ? `${preset.id}-${newId().slice(0, 8)}` : preset.id)

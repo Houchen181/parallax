@@ -64,15 +64,46 @@ code-signed yet, so Windows SmartScreen may warn you. Choose **More info → Run
 Open <https://houchen181.github.io/parallax/>. It's the same app running in the browser.
 
 - Keys are stored in that browser's local storage and sent straight to each provider.
-- Some providers don't accept requests from web pages (CORS), so they only work in the desktop app.
+- Some providers don't accept requests from web pages (CORS), so they only work in the desktop app or the local
+  web version below.
 - Local servers such as Ollama need their own CORS setting (for Ollama, `OLLAMA_ORIGINS`).
+- Sign in with ChatGPT isn't available on the hosted site: OpenAI only allows it for apps that run on your own
+  computer. Use the desktop app, or run the web version locally.
+
+### Run the web version on your computer
+
+This runs Parallax in your browser, served from your own computer. Because it then counts as a local app, it
+gets the same powers as the desktop app:
+- **Sign in with ChatGPT** works.
+- Every provider works, including ones that block web pages.
+- API keys stay out of the browser.
+
+You need [Node.js](https://nodejs.org) 22 or newer.
+
+```bash
+git clone https://github.com/Houchen181/parallax.git
+cd parallax
+npm install
+npm run serve
+```
+
+Parallax opens at <http://127.0.0.1:4747/>.
+
+- A small local server keeps your API keys and ChatGPT sign-ins in a file only your user account can read: on
+  Windows `%APPDATA%\Parallax Local`, on macOS `~/Library/Application Support/Parallax Local`, on Linux
+  `~/.config/parallax-local`. It also passes requests from the page to the providers.
+- The server only listens on `127.0.0.1`. It accepts requests only from the page it served, which carries a
+  session token that changes on every start, so other websites you visit can't use it.
+- Your chats are stored in the browser for that address. Use the same port every time (`--port` changes it) to
+  keep them.
+- Stop it with Ctrl+C. Start it again later with `npm run serve`.
 
 ## Getting started
 
 1. Open **Settings → Providers**, pick a provider and paste your API key. Parallax fetches that provider's
    model list automatically. To add another provider, click **Add provider** and choose one of the presets.
    With a ChatGPT Plus or Pro plan, you can instead pick **ChatGPT plan** and click **Continue with ChatGPT**
-   (desktop app).
+   (desktop app or local web version).
 2. Start a chat with **New chat** and pick a model at the top of the pane.
 3. To compare models, click **Compare models**, tick the models you want and type a question. Each model gets
    its own pane, and your messages go to all of them.
@@ -91,9 +122,12 @@ Keyboard shortcuts:
 
 ### Using a subscription instead of an API key
 
-- **ChatGPT Plus or Pro: yes, in the desktop app.** Parallax supports OpenAI's
+- **ChatGPT Plus or Pro: yes, in the desktop app or the [local web version](#run-the-web-version-on-your-computer).**
+  Parallax supports OpenAI's
   [Sign in with ChatGPT plan usage](https://developers.openai.com/siwc/token-sharing-open-source) for
   open-source, locally run apps.
+  - The hosted website can't offer it: OpenAI requires approval and a server for hosted sites, and that path is
+    currently limited to selected partners.
   - Chats with the "ChatGPT plan" models count toward your plan's limits and any weekly limit you set for
     Parallax under [ChatGPT settings → Usage](https://chatgpt.com/settings/usage).
   - On Plus, the five-hour limit is shared by every app that uses your plan.
@@ -108,7 +142,7 @@ Keyboard shortcuts:
 |---|---|---|
 | Anthropic | Messages API through the official `@anthropic-ai/sdk` | Thinking summaries, effort setting, prompt caching, refusal fallback |
 | OpenAI | Chat Completions | GPT and o-series models |
-| ChatGPT plan | Responses API, signed in with ChatGPT | Desktop app only; uses your Plus or Pro plan, with reasoning summaries |
+| ChatGPT plan | Responses API, signed in with ChatGPT | Desktop app or local web version; uses your Plus or Pro plan, with reasoning summaries |
 | Google Gemini | Gemini's OpenAI-compatible endpoint | |
 | OpenRouter, Groq, DeepSeek, Mistral, xAI, Together | Chat Completions | One preset each |
 | Ollama, LM Studio | Chat Completions on `localhost` | No key needed |
@@ -137,6 +171,9 @@ Notes on Claude:
   - ChatGPT ID tokens are verified against OpenAI's published keys. Access and refresh tokens are encrypted
     like API keys and only ever sent to `api.openai.com`.
   - Signing out revokes the session with OpenAI.
+- **Local web version.** The same rules apply. The local server keeps keys and tokens in a file only your user
+  account can read (as OpenAI's docs describe for open-source clients) rather than in the browser. It accepts API
+  calls only from its own page.
 - **Model output is untrusted.**
   - Raw HTML isn't rendered, and remote images become plain links (no tracking pixels).
   - Links open in your browser, not in the app.
@@ -158,7 +195,8 @@ Other commands:
 
 | Command | What it does |
 |---|---|
-| `npm run dev:web` | The browser version at http://localhost:5173 |
+| `npm run serve` | Builds and runs the web version on your computer at http://127.0.0.1:4747, with Sign in with ChatGPT |
+| `npm run dev:web` | The browser version at http://localhost:5173, with hot reload and no local server |
 | `npm test` | Unit tests (Vitest) |
 | `npm run typecheck` | TypeScript checks for the renderer and the Electron code |
 | `npm run mock` | A fake LLM server on port 8787 that speaks both APIs and fakes Sign in with ChatGPT, for testing without keys or accounts (see `scripts/mock-llm-server.mjs`) |
@@ -171,6 +209,7 @@ Project layout:
 src/main/        Electron main process: window, encrypted key store, streaming HTTP proxy,
                  Sign in with ChatGPT (chatgpt.ts)
 src/preload/     The small, typed bridge exposed to the UI
+src/server/      Local web server for `npm run serve` (static files, key store, proxy, ChatGPT sign-in)
 src/shared/      Types shared across processes
 src/renderer/    React UI
   src/lib/       Provider adapters, conversation engine, prompt building, SSE parsing

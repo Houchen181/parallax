@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { CircleCheck, ExternalLink, LoaderCircle, RefreshCw, Trash2 } from 'lucide-react'
-import { REPO_URL, bridge, isDesktop, openExternal } from '../../lib/platform'
+import { REPO_URL, RUN_LOCALLY_URL, bridge, hasBackend, openExternal } from '../../lib/platform'
 import { adapterFor } from '../../lib/providers'
 import { CHATGPT_USAGE_URL } from '../../lib/providers/chatgpt'
 import type { ProviderConfig } from '../../lib/types'
@@ -53,7 +53,7 @@ export function ChatGPTEditor({ provider }: { provider: ProviderConfig }) {
   const signIn = async (enablePlan = false) => {
     if (!bridge) return
     setBusy('signin')
-    setStatus({ kind: 'info', text: 'Finish signing in in the browser window that just opened.' })
+    setStatus({ kind: 'info', text: 'Finish signing in in the browser tab that just opened.' })
     try {
       const result = await bridge.chatgpt.signIn(provider.id, { enablePlan })
       await refreshChatGPT()
@@ -126,12 +126,20 @@ export function ChatGPTEditor({ provider }: { provider: ProviderConfig }) {
           can't see your ChatGPT conversations or other account data.
         </p>
 
-        {!isDesktop ? (
+        {!hasBackend ? (
           <div className="mt-4 space-y-3">
-            <StatusLine status={{ kind: 'info', text: 'Signing in with ChatGPT needs the Parallax desktop app for Windows.' }} />
-            <Button onClick={() => openExternal(`${REPO_URL}/releases/latest`)}>
-              Download the desktop app <ExternalLink className="size-3.5" />
-            </Button>
+            <p className="text-sm leading-relaxed text-muted">
+              OpenAI only allows this sign-in for apps that run on your own computer, so it can't work on this website. Use the
+              Windows app, or run the web version on your computer and open it in your browser.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => openExternal(`${REPO_URL}/releases/latest`)}>
+                Download the desktop app <ExternalLink className="size-3.5" />
+              </Button>
+              <Button onClick={() => openExternal(RUN_LOCALLY_URL)}>
+                Run it on your computer <ExternalLink className="size-3.5" />
+              </Button>
+            </div>
           </div>
         ) : busy === 'signin' ? (
           <div className="mt-4 flex flex-wrap items-center gap-3">

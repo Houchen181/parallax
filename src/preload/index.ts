@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { ChatGPTAccount, ChatGPTSignInResult, HttpEvent, ParallaxBridge, SavedKeyInfo } from '../shared/bridge'
 
 const bridge: ParallaxBridge = {
-  isDesktop: true,
+  runtime: 'desktop',
   platform: process.platform,
   versions: {
     electron: process.versions.electron ?? '',

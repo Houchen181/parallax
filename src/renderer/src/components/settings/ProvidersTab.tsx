@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ExternalLink, KeyRound, LoaderCircle, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { removeKey, saveKey } from '../../lib/keys'
-import { isDesktop, openExternal } from '../../lib/platform'
+import { hasBackend, openExternal, runtime } from '../../lib/platform'
 import { adapterFor } from '../../lib/providers'
 import { DEMO_PROVIDER_ID, availablePresets, presetFor } from '../../lib/providers/presets'
 import type { Effort, MaxTokensParam, ProviderConfig } from '../../lib/types'
@@ -113,7 +113,7 @@ function ProviderEditor({ provider }: { provider: ProviderConfig }) {
   }
 
   const currentOrigin = originOf(provider.baseUrl)
-  const keyLockedElsewhere = isDesktop && hasKey && lockedOrigin && currentOrigin && lockedOrigin !== currentOrigin
+  const keyLockedElsewhere = hasBackend && hasKey && lockedOrigin && currentOrigin && lockedOrigin !== currentOrigin
   const firstParty = provider.kind === 'anthropic' && provider.baseUrl === 'https://api.anthropic.com'
 
   return (
@@ -137,10 +137,10 @@ function ProviderEditor({ provider }: { provider: ProviderConfig }) {
         </div>
       </div>
 
-      {!isDesktop && preset?.browserSupport === 'no' && (
+      {runtime === 'web' && preset?.browserSupport === 'no' && (
         <StatusLine status={{ kind: 'error', text: 'This provider does not accept requests from web pages. Use the desktop app for it.' }} />
       )}
-      {!isDesktop && preset?.browserSupport === 'unknown' && (
+      {runtime === 'web' && preset?.browserSupport === 'unknown' && (
         <StatusLine
           status={{
             kind: 'info',
@@ -187,7 +187,7 @@ function ProviderEditor({ provider }: { provider: ProviderConfig }) {
             <div className="flex items-center gap-2 rounded-lg border border-line bg-sidebar px-3 py-2 text-sm">
               <KeyRound className="size-4 text-ok" />
               <span className="flex-1 text-muted">
-                Saved {isDesktop ? '(encrypted on this computer)' : '(in this browser)'}
+                Saved {runtime === 'desktop' ? '(encrypted on this computer)' : runtime === 'local' ? '(by Parallax on this computer)' : '(in this browser)'}
               </span>
               <Button size="sm" variant="ghost" onClick={() => void forgetKey()}>
                 Remove
@@ -389,10 +389,16 @@ export function ProvidersTab() {
         </div>
       </div>
       <div className="min-w-0 flex-1 overflow-y-auto p-6">
-        {!isDesktop && (
+        {runtime === 'web' && (
           <div className="mb-5 rounded-xl border border-line bg-sidebar px-4 py-3 text-[13px] leading-relaxed text-muted">
             You're using the web version. API keys are kept in this browser's storage and sent straight to each provider, never to
             a Parallax server (there isn't one). For the strongest key protection, use the desktop app.
+          </div>
+        )}
+        {runtime === 'local' && (
+          <div className="mb-5 rounded-xl border border-line bg-sidebar px-4 py-3 text-[13px] leading-relaxed text-muted">
+            Parallax is running on this computer. API keys and ChatGPT sign-ins are kept by the local Parallax server, not in
+            the browser, and requests go from there straight to each provider.
           </div>
         )}
         {selected ? <ProviderEditor key={selected.id} provider={selected} /> : <p className="text-sm text-muted">No providers.</p>}

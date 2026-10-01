@@ -17,7 +17,9 @@ export const CHATGPT_SETTINGS_CODES = new Set([CHATGPT_SIGN_IN_REQUIRED, CHATGPT
 let apiBase: Promise<string> | null = null
 
 function base(): Promise<string> {
-  if (!bridge) return Promise.reject(new ProviderError('Signing in with ChatGPT needs the Parallax desktop app.'))
+  if (!bridge) {
+    return Promise.reject(new ProviderError('Sign in with ChatGPT works in the desktop app or when Parallax runs on your computer.'))
+  }
   apiBase ??= bridge.chatgpt.apiBase()
   return apiBase
 }

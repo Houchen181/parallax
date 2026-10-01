@@ -1,4 +1,3 @@
-import { isDesktop } from '../platform'
 import type { ModelInfo, ProviderConfig, ProviderKind } from '../types'
 
 export interface ProviderPreset {
@@ -62,7 +61,7 @@ export const PRESETS: ProviderPreset[] = [
     kind: 'chatgpt',
     baseUrl: 'https://api.openai.com/v1',
     requiresKey: false,
-    description: 'Use your ChatGPT Plus or Pro plan instead of an API key. Desktop app only.',
+    description: 'Use your ChatGPT Plus or Pro plan instead of an API key (desktop app or local web version).',
     browserSupport: 'no',
     defaults: { thinking: true },
     builtIn: true,
@@ -220,9 +219,9 @@ export function providerFromPreset(preset: ProviderPreset, id: string): Provider
   }
 }
 
-/** Presets that can work in this build (Sign in with ChatGPT needs the desktop app). */
+/** Presets offered in Settings. ChatGPT plan is listed everywhere; on the static website its panel explains how to get it. */
 export function availablePresets(): ProviderPreset[] {
-  return PRESETS.filter((p) => p.kind !== 'chatgpt' || isDesktop)
+  return PRESETS
 }
 
 export function defaultProviders(): ProviderConfig[] {

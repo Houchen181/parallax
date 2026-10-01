@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   BrowserWindow,
@@ -13,7 +13,8 @@ import {
   type MenuItemConstructorOptions,
   type WebContents,
 } from 'electron'
-import type { HttpEvent, HttpRequest, SavedKeyInfo } from '../shared/bridge'
+import type { HttpEvent, HttpRequest } from '../shared/bridge'
+import { KeyStore, prepareUpstream } from './backend'
 import { ChatGPTAuth, ChatGPTError, OPENAI_API_BASE, OPENAI_ISSUER, type Sealed } from './chatgpt'
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL
@@ -27,28 +28,7 @@ if (process.env.PARALLAX_USER_DATA) app.setPath('userData', process.env.PARALLAX
 // so a key saved for api.openai.com can never be attached to another host.
 // ---------------------------------------------------------------------------
 
-interface StoredKey {
-  data: string
-  encrypted: boolean
-  origin: string
-}
-
-let keys: Record<string, StoredKey> = {}
-const keysFile = () => join(app.getPath('userData'), 'api-keys.json')
-
-async function loadKeys() {
-  try {
-    keys = JSON.parse(await readFile(keysFile(), 'utf8')) as Record<string, StoredKey>
-  } catch {
-    keys = {}
-  }
-}
-
-async function persistKeys() {
-  const tmp = `${keysFile()}.tmp`
-  await writeFile(tmp, JSON.stringify(keys, null, 2), { mode: 0o600 })
-  await rename(tmp, keysFile())
-}
+let keys: KeyStore
 
 function seal(plain: string): Sealed {
   if (safeStorage.isEncryptionAvailable()) {
@@ -106,22 +86,9 @@ function handle(channel: string, fn: (event: IpcMainInvokeEvent, ...args: never[
 }
 
 function registerIpc() {
-  handle('keys:list', (): SavedKeyInfo[] =>
-    Object.entries(keys).map(([providerId, k]) => ({ providerId, origin: k.origin, encrypted: k.encrypted })),
-  )
-
-  handle('keys:set', async (_event, providerId: string, key: string, baseUrl: string) => {
-    if (typeof providerId !== 'string' || !providerId) throw new Error('Missing provider id')
-    if (typeof key !== 'string' || !key.trim()) throw new Error('The API key is empty')
-    const origin = new URL(baseUrl).origin
-    keys[providerId] = { ...seal(key.trim()), origin }
-    await persistKeys()
-  })
-
-  handle('keys:remove', async (_event, providerId: string) => {
-    delete keys[providerId]
-    await persistKeys()
-  })
+  handle('keys:list', () => keys.list())
+  handle('keys:set', (_event, providerId: string, key: string, baseUrl: string) => keys.set(providerId, key, baseUrl))
+  handle('keys:remove', (_event, providerId: string) => keys.remove(providerId))
 
   handle('http:start', (event, request: HttpRequest) => {
     const controller = new AbortController()
@@ -158,43 +125,14 @@ function registerIpc() {
 // ---------------------------------------------------------------------------
 
 const inflight = new Map<string, AbortController>()
-const DROPPED_HEADERS = new Set(['host', 'content-length', 'connection', 'origin', 'referer'])
 
 async function runRequest(sender: WebContents, request: HttpRequest, controller: AbortController) {
   const send = (event: HttpEvent) => {
     if (!sender.isDestroyed()) sender.send('http:event', event)
   }
   try {
-    const url = new URL(request.url)
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-      throw new Error(`Unsupported URL scheme: ${url.protocol}`)
-    }
-    const headers: Record<string, string> = {}
-    for (const [name, value] of Object.entries(request.headers ?? {})) {
-      const lower = name.toLowerCase()
-      if (!DROPPED_HEADERS.has(lower)) headers[lower] = value
-    }
-    if (request.auth?.source === 'chatgpt') {
-      // OAuth tokens from Sign in with ChatGPT only ever go to the OpenAI API.
-      if (url.origin !== chatgpt.apiOrigin) throw new Error(`ChatGPT sign-in only works with ${chatgpt.apiOrigin}.`)
-      headers.authorization = `Bearer ${await chatgpt.accessToken(request.auth.providerId)}`
-    } else if (request.auth) {
-      const stored = keys[request.auth.providerId]
-      if (!stored) throw new Error('No API key is saved for this provider. Add one in Settings → Providers.')
-      if (stored.origin !== url.origin) {
-        throw new Error(
-          `The saved API key is locked to ${stored.origin}. Save the key again after changing the base URL.`,
-        )
-      }
-      headers[request.auth.header.toLowerCase()] = (request.auth.prefix ?? '') + unseal(stored)
-    }
-
-    const response = await net.fetch(url.href, {
-      method: request.method,
-      headers,
-      body: request.body,
-      signal: controller.signal,
-    })
+    const { url, init } = await prepareUpstream(request, keys, chatgpt)
+    const response = await net.fetch(url, { ...init, signal: controller.signal })
     const responseHeaders: Record<string, string> = {}
     response.headers.forEach((value, name) => {
       responseHeaders[name] = value
@@ -353,7 +291,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     app.setAppUserModelId('io.github.houchen181.parallax')
-    await loadKeys()
+    keys = new KeyStore(join(app.getPath('userData'), 'api-keys.json'), seal, unseal)
+    await keys.load()
     chatgpt = createChatGPTAuth()
     await chatgpt.load()
     registerIpc()

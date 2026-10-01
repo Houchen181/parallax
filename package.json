@@ -1,7 +1,7 @@
 {
   "name": "parallax",
   "productName": "Parallax",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A desktop chat app for running Claude, GPT, Gemini and any OpenAI-compatible model side by side (with your API keys or your ChatGPT plan): broadcast one prompt to many sessions, compare the answers, or put several models in one group chat.",
   "author": "Houchen181",
   "license": "MIT",
@@ -17,6 +17,7 @@
     "dev:web": "vite",
     "build": "npm run typecheck && vite build && node scripts/build-electron.mjs",
     "build:web": "vite build --mode web",
+    "serve": "vite build --mode web && node scripts/build-electron.mjs && node dist/server/cli.js",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "test": "vitest run",
     "start": "electron .",

@@ -3,6 +3,7 @@
 // Groq, DeepSeek, Mistral, Ollama, LM Studio, vLLM, ...).
 import type { AuthSpec } from '../../../../shared/bridge'
 import { abortError, describeHttpError, httpFetch, isAbortError } from '../http'
+import { runtime } from '../platform'
 import { parseSSE, textChunks } from '../sse'
 import type { ModelInfo, ProviderConfig } from '../types'
 import { ProviderError, type ChatRequest, type ChatResult, type ProviderAdapter, type StreamHandlers } from './types'
@@ -28,7 +29,7 @@ interface StreamChunk {
 function connectionError(provider: ProviderConfig, err: unknown): ProviderError {
   const reason = err instanceof Error ? err.message : String(err)
   const hint =
-    typeof window !== 'undefined' && !window.parallax
+    runtime === 'web'
       ? ' The provider may not allow requests from a web page; the desktop app does not have this limit.'
       : ''
   return new ProviderError(`Could not reach ${provider.baseUrl}: ${reason}.${hint}`)

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { ChevronDown, Download, ExternalLink, Upload } from 'lucide-react'
 import { downloadJson } from '../../lib/format'
-import { REPO_URL, bridge, isDesktop, openExternal } from '../../lib/platform'
+import { REPO_URL, bridge, openExternal, runtime } from '../../lib/platform'
 import type { Session, SpeakingOrder, Theme, ProviderConfig } from '../../lib/types'
 import { exportSnapshot, modelLabel, useStore } from '../../store'
 import { ModelPicker } from '../ModelPicker'
@@ -227,9 +227,11 @@ export function DataTab() {
   return (
     <div className="p-6">
       <p className="mb-2 text-sm text-muted">
-        {isDesktop
+        {runtime === 'desktop'
           ? 'Chats are stored on this computer. API keys are encrypted by Windows and are never included in exports.'
-          : 'Chats and API keys are stored in this browser only. Exports never include API keys.'}
+          : runtime === 'local'
+            ? 'Chats are stored in this browser. API keys and ChatGPT sign-ins are kept by the local Parallax server and are never included in exports.'
+            : 'Chats and API keys are stored in this browser only. Exports never include API keys.'}
       </p>
       <SettingRow title="Export chats" description={`Download all ${count} chats, your settings and provider list as JSON.`}>
         <Button onClick={() => downloadJson(`parallax-${new Date().toISOString().slice(0, 10)}.json`, exportSnapshot())}>
@@ -303,7 +305,8 @@ export function AboutTab() {
         <div>
           <div className="text-xl font-semibold">Parallax</div>
           <div className="text-sm text-muted">
-            Version {__APP_VERSION__} · {isDesktop ? `desktop (Electron ${bridge?.versions.electron})` : 'web'}
+            Version {__APP_VERSION__} ·{' '}
+            {runtime === 'desktop' ? `desktop (Electron ${bridge?.versions.electron})` : runtime === 'local' ? 'web, running on this computer' : 'web'}
           </div>
         </div>
       </div>
@@ -317,7 +320,7 @@ export function AboutTab() {
       <div className="flex flex-wrap gap-2">
         <LinkButton href={REPO_URL}>Source on GitHub</LinkButton>
         <LinkButton href={`${REPO_URL}/releases/latest`}>Download for Windows</LinkButton>
-        {isDesktop && <LinkButton href={PAGES_URL}>Web version</LinkButton>}
+        {runtime !== 'web' && <LinkButton href={PAGES_URL}>Web version</LinkButton>}
         <LinkButton href={`${REPO_URL}/issues`}>Report an issue</LinkButton>
       </div>
     </div>
