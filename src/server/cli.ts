@@ -9,7 +9,7 @@ import { join, resolve } from 'node:path'
 import { KeyStore } from '../main/backend'
 import { ChatGPTAuth, OPENAI_API_BASE, OPENAI_ISSUER } from '../main/chatgpt'
 import { startLocalServer } from './local-server'
-import { localDataDir, openInBrowser, plainSeal as plain } from './system'
+import { adoptLegacyData, legacyDataDir, localDataDir, openInBrowser, plainSeal as plain } from './system'
 
 function argValue(name: string): string | undefined {
   const index = process.argv.indexOf(name)
@@ -24,6 +24,7 @@ async function main() {
     process.exit(1)
   }
   const dir = localDataDir()
+  await adoptLegacyData(dir, legacyDataDir())
   const keys = new KeyStore(join(dir, 'api-keys.json'), plain.seal, plain.unseal)
   await keys.load()
   const chatgpt = new ChatGPTAuth({

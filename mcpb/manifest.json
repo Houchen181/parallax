@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "parallax",
   "display_name": "Parallax",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Ask Claude, GPT, Gemini, OpenRouter and local models the same question side by side, or have them discuss it, with your own API keys.",
   "long_description": "Parallax sends one prompt to several AI models in parallel and brings every answer back, or runs a group discussion where the models take turns replying to each other.\n\nIt works with Anthropic, OpenAI, Google Gemini, OpenRouter, xAI, DeepSeek, Groq, Mistral, Together AI, Ollama, LM Studio and any OpenAI-compatible server. Enter keys in this extension's settings, or ask Claude to run **configure_keys**, which opens a page in your browser for the other providers. Keys stay on your computer and are only sent to their provider.",
   "author": {

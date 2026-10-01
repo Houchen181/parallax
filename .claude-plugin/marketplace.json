@@ -8,7 +8,7 @@
     {
       "name": "parallax",
       "source": "./plugins/parallax",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "description": "Ask Claude, GPT, Gemini, OpenRouter and local models the same question side by side, or have them discuss it, with your own API keys.",
       "author": {
         "name": "Houchen181",

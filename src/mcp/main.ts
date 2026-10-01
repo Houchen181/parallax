@@ -2,6 +2,7 @@
 // Hosts start it with `node parallax-mcp.cjs` and talk MCP over stdin/stdout, so
 // nothing else may be written to stdout.
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { adoptLegacyData, legacyDataDir, localDataDir } from '../server/system'
 import { createParallaxServer } from './server'
 
 async function main() {
@@ -11,6 +12,7 @@ async function main() {
   }
   // One failed request must not take the whole server down. stderr ends up in the host's MCP log.
   process.on('unhandledRejection', (reason) => console.error('Parallax: unhandled rejection:', reason))
+  await adoptLegacyData(localDataDir(), legacyDataDir()).catch((err: unknown) => console.error('Parallax: could not move old keys:', err))
   const parallax = createParallaxServer()
   let closing = false
   const shutdown = () => {

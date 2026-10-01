@@ -93,7 +93,7 @@ npm run serve
 Parallax opens at <http://127.0.0.1:4747/>.
 
 - A small local server keeps your API keys and ChatGPT sign-ins in a file only your user account can read: on
-  Windows `%APPDATA%\Parallax Local`, on macOS `~/Library/Application Support/Parallax Local`, on Linux
+  Windows `%USERPROFILE%\.parallax`, on macOS `~/Library/Application Support/Parallax Local`, on Linux
   `~/.config/parallax-local`. It also passes requests from the page to the providers.
 - The server only listens on `127.0.0.1`. It accepts requests only from the page it served, which carries a
   session token that changes on every start, so other websites you visit can't use it.
@@ -182,8 +182,9 @@ All of them are optional, and they're stored in your system's secure storage. To
 2. Open it with Claude Desktop by double-clicking it. The Microsoft Store version of Claude for Windows doesn't
    open `.mcpb` files from Explorer, so with that version run this in a terminal instead:
    ```powershell
-   claude-desktop "$HOME\Downloads\Parallax-0.4.0.mcpb"
+   claude-desktop "$HOME\Downloads\Parallax-0.4.1.mcpb"
    ```
+   Change the file name to match the one you downloaded.
 3. Click **Install**, then enter the API keys you want in the extension's settings. You can also add keys later
    from the chat.
 
