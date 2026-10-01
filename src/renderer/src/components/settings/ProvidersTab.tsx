@@ -323,7 +323,11 @@ export function ProvidersTab() {
   const settings = useStore((s) => s.settings)
   const chatgptAccounts = useStore((s) => s.chatgptAccounts)
   const addProvider = useStore((s) => s.addProvider)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const requested = useStore((s) => s.settingsProviderId)
+  const [selectedId, setSelectedId] = useState<string | null>(requested)
+  useEffect(() => {
+    if (requested) setSelectedId(requested)
+  }, [requested])
   const [adding, setAdding] = useState<HTMLElement | null>(null)
 
   const selected = useMemo(

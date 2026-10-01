@@ -62,6 +62,8 @@ export interface AppState extends PersistedState {
   excludedTargets: Record<string, boolean>
   settingsOpen: boolean
   settingsTab: SettingsTab
+  /** Provider to select when Settings opens on the Providers tab. */
+  settingsProviderId: string | null
   compareBroadcastId: string | null
   newCompareOpen: boolean
   /** Sign in with ChatGPT accounts by provider id (desktop only). Not persisted. */
@@ -105,7 +107,7 @@ export interface AppState extends PersistedState {
   updateGroupSettings(patch: Partial<GroupSettings>): void
   resetSettings(): void
 
-  openSettings(tab?: SettingsTab): void
+  openSettings(tab?: SettingsTab, providerId?: string): void
   closeSettings(): void
   openCompare(broadcastId: string): void
   closeCompare(): void
@@ -291,6 +293,7 @@ export const useStore = create<AppState>()(
       excludedTargets: {},
       settingsOpen: false,
       settingsTab: 'providers',
+      settingsProviderId: null,
       compareBroadcastId: null,
       newCompareOpen: false,
       chatgptAccounts: {},
@@ -612,8 +615,8 @@ export const useStore = create<AppState>()(
         set({ settings: DEFAULT_SETTINGS })
       },
 
-      openSettings(tab) {
-        set((s) => ({ settingsOpen: true, settingsTab: tab ?? s.settingsTab }))
+      openSettings(tab, providerId) {
+        set((s) => ({ settingsOpen: true, settingsTab: tab ?? s.settingsTab, settingsProviderId: providerId ?? null }))
       },
       closeSettings() {
         set({ settingsOpen: false })

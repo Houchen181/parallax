@@ -139,6 +139,7 @@ function PaneMenu({ session, multi, onRename }: { session: Session; multi: boole
 function EmptyState({ session, compact }: { session: Session; compact: boolean }) {
   const openSettings = useStore((s) => s.openSettings)
   const hasRealProvider = useStore((s) => s.providers.some((p) => p.kind !== 'demo' && providerReady(s, p)))
+  const chatgptProvider = useStore((s) => s.providers.find((p) => p.kind === 'chatgpt' && p.enabled))
   const features = useFeatures()
 
   if (session.kind === 'group') {
@@ -166,13 +167,19 @@ function EmptyState({ session, compact }: { session: Session; compact: boolean }
         <div className="max-w-md rounded-2xl border border-line bg-sidebar p-4 text-left">
           <div className="text-sm font-medium">Connect a model provider</div>
           <p className="mt-1 text-[13px] leading-relaxed text-muted">
-            Add an API key for Anthropic, OpenAI, Google or any OpenAI-compatible service. Until then you can try the
-            simulated demo models.
+            Add an API key for Anthropic, OpenAI, Google or any OpenAI-compatible service
+            {chatgptProvider ? ', or use your ChatGPT Plus or Pro plan' : ''}. Until then you can try the simulated demo
+            models.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button size="sm" variant="primary" onClick={() => openSettings('providers')}>
               Add an API key
             </Button>
+            {chatgptProvider && (
+              <Button size="sm" onClick={() => openSettings('providers', chatgptProvider.id)}>
+                Use your ChatGPT plan
+              </Button>
+            )}
             {features.broadcast && (
               <Button size="sm" onClick={() => startDemo('compare')}>
                 <Columns3 className="size-3.5" /> Demo: compare models
