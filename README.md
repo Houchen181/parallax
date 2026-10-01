@@ -179,8 +179,17 @@ All of them are optional, and they're stored in your system's secure storage. To
 ### Claude Desktop
 
 1. Download `Parallax-<version>.mcpb` from the [latest release](https://github.com/Houchen181/parallax/releases/latest).
-2. Open it with Claude Desktop: double-click it, or drag it onto **Settings → Extensions**.
-3. Enter the API keys you want in the extension's settings. You can also add keys later from the chat.
+2. Open it with Claude Desktop by double-clicking it. The Microsoft Store version of Claude for Windows doesn't
+   open `.mcpb` files from Explorer, so with that version run this in a terminal instead:
+   ```powershell
+   claude-desktop "$HOME\Downloads\Parallax-0.4.0.mcpb"
+   ```
+3. Click **Install**, then enter the API keys you want in the extension's settings. You can also add keys later
+   from the chat.
+
+Some organizations only allow extensions their admins have approved. If your Claude account belongs to one, the
+**Install** button stays gray until an admin approves Parallax. The [Claude Code plugin](#claude-code) is
+installed separately, so it may still be available to you.
 
 ### Codex
 
