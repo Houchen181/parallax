@@ -91,7 +91,7 @@ function desktopFetch(url: string, options: HttpOptions): Promise<Response> {
           cleanup()
           break
         case 'error': {
-          const err = event.aborted ? abortError() : new TypeError(event.message)
+          const err = event.aborted ? abortError() : Object.assign(new TypeError(event.message), { code: event.code })
           if (!settled) {
             settled = true
             reject(err)

@@ -1,3 +1,4 @@
+import { isDesktop } from '../platform'
 import type { ModelInfo, ProviderConfig, ProviderKind } from '../types'
 
 export interface ProviderPreset {
@@ -53,6 +54,17 @@ export const PRESETS: ProviderPreset[] = [
       maxTokensParam: 'none',
       modelFilter: '^(?!.*(audio|realtime|transcribe|tts|image|embedding|moderation|search|instruct|codex))(gpt-|o\\d|chatgpt-)',
     },
+    builtIn: true,
+  },
+  {
+    id: 'chatgpt',
+    name: 'ChatGPT plan',
+    kind: 'chatgpt',
+    baseUrl: 'https://api.openai.com/v1',
+    requiresKey: false,
+    description: 'Use your ChatGPT Plus or Pro plan instead of an API key. Desktop app only.',
+    browserSupport: 'no',
+    defaults: { thinking: true },
     builtIn: true,
   },
   {
@@ -208,8 +220,15 @@ export function providerFromPreset(preset: ProviderPreset, id: string): Provider
   }
 }
 
+/** Presets that can work in this build (Sign in with ChatGPT needs the desktop app). */
+export function availablePresets(): ProviderPreset[] {
+  return PRESETS.filter((p) => p.kind !== 'chatgpt' || isDesktop)
+}
+
 export function defaultProviders(): ProviderConfig[] {
-  return PRESETS.filter((p) => p.builtIn).map((p) => providerFromPreset(p, p.id))
+  return availablePresets()
+    .filter((p) => p.builtIn)
+    .map((p) => providerFromPreset(p, p.id))
 }
 
 export function presetFor(provider: ProviderConfig): ProviderPreset | undefined {
@@ -220,6 +239,7 @@ export function presetFor(provider: ProviderConfig): ProviderPreset | undefined 
 const PROVIDER_COLORS: Record<string, string> = {
   anthropic: '#d97757',
   openai: '#10a37f',
+  chatgpt: '#0d9488',
   gemini: '#4285f4',
   openrouter: '#7c5cff',
   groq: '#f55036',

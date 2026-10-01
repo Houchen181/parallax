@@ -14,6 +14,7 @@ import {
   type WebContents,
 } from 'electron'
 import type { HttpEvent, HttpRequest, SavedKeyInfo } from '../shared/bridge'
+import { ChatGPTAuth, ChatGPTError, OPENAI_API_BASE, OPENAI_ISSUER, type Sealed } from './chatgpt'
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL
 const REPO_URL = 'https://github.com/Houchen181/parallax'
@@ -49,16 +50,43 @@ async function persistKeys() {
   await rename(tmp, keysFile())
 }
 
-function sealKey(plain: string): Pick<StoredKey, 'data' | 'encrypted'> {
+function seal(plain: string): Sealed {
   if (safeStorage.isEncryptionAvailable()) {
     return { data: safeStorage.encryptString(plain).toString('base64'), encrypted: true }
   }
   return { data: Buffer.from(plain, 'utf8').toString('base64'), encrypted: false }
 }
 
-function openKey(stored: StoredKey): string {
+function unseal(stored: Sealed): string {
   const buf = Buffer.from(stored.data, 'base64')
   return stored.encrypted ? safeStorage.decryptString(buf) : buf.toString('utf8')
+}
+
+// ---------------------------------------------------------------------------
+// Sign in with ChatGPT (plan usage). The PARALLAX_CHATGPT_* variables point it
+// at a local mock server for tests; they are never set in normal use.
+// ---------------------------------------------------------------------------
+
+let chatgpt: ChatGPTAuth
+
+function createChatGPTAuth(): ChatGPTAuth {
+  const fetchViaElectron = ((input: string | URL | Request, init?: RequestInit) =>
+    net.fetch(typeof input === 'string' ? input : input instanceof URL ? input.href : input, init)) as typeof fetch
+  return new ChatGPTAuth({
+    dataDir: app.getPath('userData'),
+    seal,
+    unseal,
+    appName: 'Parallax',
+    issuer: process.env.PARALLAX_CHATGPT_ISSUER || OPENAI_ISSUER,
+    apiBase: process.env.PARALLAX_CHATGPT_API || OPENAI_API_BASE,
+    fetch: fetchViaElectron,
+    openUrl:
+      process.env.PARALLAX_CHATGPT_OPEN === 'fetch'
+        ? async (url) => {
+            await fetch(url)
+          }
+        : (url) => shell.openExternal(url),
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +114,7 @@ function registerIpc() {
     if (typeof providerId !== 'string' || !providerId) throw new Error('Missing provider id')
     if (typeof key !== 'string' || !key.trim()) throw new Error('The API key is empty')
     const origin = new URL(baseUrl).origin
-    keys[providerId] = { ...sealKey(key.trim()), origin }
+    keys[providerId] = { ...seal(key.trim()), origin }
     await persistKeys()
   })
 
@@ -106,6 +134,22 @@ function registerIpc() {
   })
 
   handle('shell:openExternal', (_event, url: string) => openExternalSafe(url))
+
+  handle('chatgpt:apiBase', () => chatgpt.apiBaseUrl)
+  handle('chatgpt:accounts', () => chatgpt.accounts())
+  handle('chatgpt:signIn', async (_event, providerId: string, options?: { enablePlan?: boolean }) => {
+    const result = await chatgpt.signIn(providerId, options)
+    // The user finished in the browser; bring Parallax back to the front.
+    if (mainWindow && !process.env.PARALLAX_HIDDEN) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+    return result
+  })
+  handle('chatgpt:cancelSignIn', () => chatgpt.cancelSignIn())
+  handle('chatgpt:signOut', (_event, providerId: string) => chatgpt.signOut(providerId))
+  handle('chatgpt:forget', (_event, providerId: string) => chatgpt.forget(providerId))
 }
 
 // ---------------------------------------------------------------------------
@@ -130,7 +174,11 @@ async function runRequest(sender: WebContents, request: HttpRequest, controller:
       const lower = name.toLowerCase()
       if (!DROPPED_HEADERS.has(lower)) headers[lower] = value
     }
-    if (request.auth) {
+    if (request.auth?.source === 'chatgpt') {
+      // OAuth tokens from Sign in with ChatGPT only ever go to the OpenAI API.
+      if (url.origin !== chatgpt.apiOrigin) throw new Error(`ChatGPT sign-in only works with ${chatgpt.apiOrigin}.`)
+      headers.authorization = `Bearer ${await chatgpt.accessToken(request.auth.providerId)}`
+    } else if (request.auth) {
       const stored = keys[request.auth.providerId]
       if (!stored) throw new Error('No API key is saved for this provider. Add one in Settings → Providers.')
       if (stored.origin !== url.origin) {
@@ -138,7 +186,7 @@ async function runRequest(sender: WebContents, request: HttpRequest, controller:
           `The saved API key is locked to ${stored.origin}. Save the key again after changing the base URL.`,
         )
       }
-      headers[request.auth.header.toLowerCase()] = (request.auth.prefix ?? '') + openKey(stored)
+      headers[request.auth.header.toLowerCase()] = (request.auth.prefix ?? '') + unseal(stored)
     }
 
     const response = await net.fetch(url.href, {
@@ -178,6 +226,7 @@ async function runRequest(sender: WebContents, request: HttpRequest, controller:
       type: 'error',
       message: err instanceof Error ? err.message : String(err),
       aborted: controller.signal.aborted,
+      code: err instanceof ChatGPTError ? err.code : undefined,
     })
   } finally {
     inflight.delete(request.id)
@@ -305,6 +354,8 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     app.setAppUserModelId('io.github.houchen181.parallax')
     await loadKeys()
+    chatgpt = createChatGPTAuth()
+    await chatgpt.load()
     registerIpc()
     buildMenu()
     createWindow()

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { ChatGPTWelcome } from './components/ChatGPTWelcome'
 import { CompareDialog } from './components/CompareDialog'
 import { NewCompareDialog } from './components/NewCompareDialog'
 import { SettingsDialog } from './components/settings/SettingsDialog'
@@ -84,6 +85,7 @@ export default function App() {
       <SettingsDialog />
       <CompareDialog />
       <NewCompareDialog />
+      <ChatGPTWelcome />
     </div>
   )
 }

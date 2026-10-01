@@ -1,30 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ExternalLink, KeyRound, LoaderCircle, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { ExternalLink, KeyRound, LoaderCircle, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { removeKey, saveKey } from '../../lib/keys'
 import { isDesktop, openExternal } from '../../lib/platform'
 import { adapterFor } from '../../lib/providers'
-import { DEMO_PROVIDER_ID, PRESETS, presetFor } from '../../lib/providers/presets'
+import { DEMO_PROVIDER_ID, availablePresets, presetFor } from '../../lib/providers/presets'
 import type { Effort, MaxTokensParam, ProviderConfig } from '../../lib/types'
 import { providerReady, useStore } from '../../store'
 import { Button, MenuItem, Popover, SettingRow, Switch, cn, inputClass } from '../ui'
-
-type Status = { kind: 'ok' | 'error' | 'info'; text: string } | null
-
-function StatusLine({ status }: { status: Status }) {
-  if (!status) return null
-  return (
-    <p
-      className={cn(
-        'rounded-lg px-3 py-2 text-[13px] [overflow-wrap:anywhere]',
-        status.kind === 'ok' && 'bg-accent-soft text-fg',
-        status.kind === 'error' && 'bg-danger-soft text-danger',
-        status.kind === 'info' && 'bg-sidebar text-muted',
-      )}
-    >
-      {status.text}
-    </p>
-  )
-}
+import { ChatGPTEditor } from './ChatGPTEditor'
+import { ModelList, StatusLine, type Status } from './ProviderParts'
 
 function originOf(url: string): string | null {
   try {
@@ -34,95 +18,10 @@ function originOf(url: string): string | null {
   }
 }
 
-function ModelList({ provider }: { provider: ProviderConfig }) {
-  const updateProvider = useStore((s) => s.updateProvider)
-  const [filter, setFilter] = useState('')
-  const [custom, setCustom] = useState('')
-  const visible = provider.models.filter((m) => !m.hidden).length
-  const shown = provider.models.filter((m) => {
-    const q = filter.trim().toLowerCase()
-    return !q || m.id.toLowerCase().includes(q) || (m.label ?? '').toLowerCase().includes(q)
-  })
-  const setHidden = (ids: Set<string>, hidden: boolean) =>
-    updateProvider(provider.id, { models: provider.models.map((m) => (ids.has(m.id) ? { ...m, hidden } : m)) })
-
-  const addCustom = () => {
-    const id = custom.trim()
-    if (!id || provider.models.some((m) => m.id === id)) return
-    updateProvider(provider.id, { models: [...provider.models, { id, custom: true }] })
-    setCustom('')
-  }
-
-  return (
-    <div className="space-y-2">
-      {provider.models.length > 8 && (
-        <div className="flex items-center gap-2">
-          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter models" className={cn(inputClass, 'h-8 py-1')} />
-          <Button size="sm" onClick={() => setHidden(new Set(shown.map((m) => m.id)), false)}>
-            Show all
-          </Button>
-          <Button size="sm" onClick={() => setHidden(new Set(shown.map((m) => m.id)), true)}>
-            Hide all
-          </Button>
-        </div>
-      )}
-      <div className="max-h-64 overflow-y-auto rounded-xl border border-line">
-        {provider.models.length === 0 && (
-          <p className="px-3 py-4 text-center text-[13px] text-muted">
-            No models yet. {provider.requiresKey ? 'Save a key and they are fetched automatically, or ' : 'Fetch them, or '}add a model
-            id below.
-          </p>
-        )}
-        {shown.map((model) => (
-          <label key={model.id} className="flex items-center gap-3 border-b border-line px-3 py-1.5 last:border-b-0 hover:bg-hover">
-            <input
-              type="checkbox"
-              checked={!model.hidden}
-              onChange={(e) => setHidden(new Set([model.id]), !e.target.checked)}
-              className="size-4 accent-[var(--accent)]"
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm">{model.label ?? model.id}</span>
-              {model.label && <span className="block truncate font-mono text-[11px] text-subtle">{model.id}</span>}
-            </span>
-            {model.custom && (
-              <button
-                type="button"
-                aria-label={`Remove ${model.id}`}
-                onClick={(e) => {
-                  e.preventDefault()
-                  updateProvider(provider.id, { models: provider.models.filter((m) => m.id !== model.id) })
-                }}
-                className="rounded p-1 text-subtle hover:bg-hover hover:text-fg"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </label>
-        ))}
-      </div>
-      <div className="flex items-center gap-2">
-        <input
-          value={custom}
-          onChange={(e) => setCustom(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && addCustom()}
-          placeholder="Add a model id by hand, e.g. gpt-5-mini"
-          className={cn(inputClass, 'h-8 py-1 font-mono text-[13px]')}
-        />
-        <Button size="sm" onClick={addCustom} disabled={!custom.trim()}>
-          Add
-        </Button>
-      </div>
-      <p className="text-xs text-subtle">
-        {visible} of {provider.models.length} models appear in the model picker.
-      </p>
-    </div>
-  )
-}
-
 function ProviderEditor({ provider }: { provider: ProviderConfig }) {
   const savedKeys = useStore((s) => s.savedKeys)
   const settings = useStore((s) => s.settings)
+  const chatgptAccounts = useStore((s) => s.chatgptAccounts)
   const updateProvider = useStore((s) => s.updateProvider)
   const removeProvider = useStore((s) => s.removeProvider)
   const refreshKeys = useStore((s) => s.refreshKeys)
@@ -141,6 +40,8 @@ function ProviderEditor({ provider }: { provider: ProviderConfig }) {
     setKeyDraft('')
     setStatus(null)
   }, [provider.id, provider.baseUrl])
+
+  if (provider.kind === 'chatgpt') return <ChatGPTEditor provider={provider} />
 
   if (provider.kind === 'demo') {
     return (
@@ -319,7 +220,7 @@ function ProviderEditor({ provider }: { provider: ProviderConfig }) {
           <Button
             size="sm"
             onClick={() => void fetchModels()}
-            disabled={busy !== null || !providerReady({ savedKeys, settings }, provider)}
+            disabled={busy !== null || !providerReady({ savedKeys, settings, chatgptAccounts }, provider)}
             title="Fetch the model list (also tests the connection)"
           >
             {busy === 'models' ? <LoaderCircle className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
@@ -420,6 +321,7 @@ export function ProvidersTab() {
   const providers = useStore((s) => s.providers)
   const savedKeys = useStore((s) => s.savedKeys)
   const settings = useStore((s) => s.settings)
+  const chatgptAccounts = useStore((s) => s.chatgptAccounts)
   const addProvider = useStore((s) => s.addProvider)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [adding, setAdding] = useState<HTMLElement | null>(null)
@@ -434,7 +336,7 @@ export function ProvidersTab() {
       <div className="flex w-56 shrink-0 flex-col border-r border-line">
         <div className="flex-1 space-y-0.5 overflow-y-auto p-2">
           {providers.map((provider) => {
-            const ready = providerReady({ savedKeys, settings }, provider)
+            const ready = providerReady({ savedKeys, settings, chatgptAccounts }, provider)
             return (
               <button
                 key={provider.id}
@@ -465,7 +367,7 @@ export function ProvidersTab() {
             <Plus className="size-4" /> Add provider
           </Button>
           <Popover anchor={adding} open={!!adding} onClose={() => setAdding(null)} className="max-h-96 w-72 overflow-y-auto">
-            {PRESETS.map((preset) => (
+            {availablePresets().map((preset) => (
               <MenuItem
                 key={preset.id}
                 onClick={() => {

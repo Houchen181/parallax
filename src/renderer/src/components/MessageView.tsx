@@ -2,6 +2,8 @@ import { memo, useState } from 'react'
 import { Brain, ChevronRight, GitCompareArrows, Pencil, RotateCcw, Star, TriangleAlert, Info } from 'lucide-react'
 import { editAndResend, regenerate } from '../lib/engine'
 import { metricParts } from '../lib/format'
+import { openExternal } from '../lib/platform'
+import { CHATGPT_SETTINGS_CODES, CHATGPT_USAGE_LIMIT, CHATGPT_USAGE_URL } from '../lib/providers/chatgpt'
 import type { Message, Participant } from '../lib/types'
 import { useFeatures, useStore } from '../store'
 import { CopyButton, Markdown } from './Markdown'
@@ -138,7 +140,9 @@ function AssistantMessage({
   const color = participant?.color ?? '#8f8f8f'
   const streaming = message.status === 'streaming'
   const metrics = showMetrics && !streaming ? metricParts(message.metrics) : []
-  const needsSettings = message.error?.includes('Settings →')
+  const usageLimit = message.errorCode === CHATGPT_USAGE_LIMIT
+  const needsSettings =
+    !usageLimit && (CHATGPT_SETTINGS_CODES.has(message.errorCode ?? '') || message.error?.includes('Settings →'))
 
   return (
     <div className="group flex gap-3">
@@ -169,6 +173,11 @@ function AssistantMessage({
               <span className="[overflow-wrap:anywhere]">{message.error}</span>
             </div>
             <div className="flex gap-2">
+              {usageLimit && (
+                <Button size="sm" variant="primary" onClick={() => openExternal(CHATGPT_USAGE_URL)}>
+                  Manage usage
+                </Button>
+              )}
               {needsSettings && (
                 <Button size="sm" variant="secondary" onClick={() => openSettings('providers')}>
                   Open settings

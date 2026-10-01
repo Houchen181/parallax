@@ -1,4 +1,5 @@
-export type ProviderKind = 'anthropic' | 'openai' | 'demo'
+/** chatgpt = Sign in with ChatGPT (the user's ChatGPT plan pays, through the Responses API). */
+export type ProviderKind = 'anthropic' | 'openai' | 'chatgpt' | 'demo'
 
 export interface ModelInfo {
   id: string
@@ -32,7 +33,7 @@ export interface ProviderConfig {
   includeUsage?: boolean
   /** Regex applied to fetched model ids. */
   modelFilter?: string
-  /** Anthropic: show summarized thinking for models that support it. */
+  /** Anthropic and ChatGPT plan: show summarized reasoning for models that support it. */
   thinking?: boolean
   /** Anthropic: output_config.effort, '' means the model default. */
   effort?: Effort
@@ -77,6 +78,8 @@ export interface Message {
   model?: ModelRef & { label: string }
   status?: MessageStatus
   error?: string
+  /** Machine-readable error, e.g. a ChatGPT usage limit, used to offer the right fix. */
+  errorCode?: string
   /** Informational note shown under the message (truncation, fallback...). */
   notice?: string
   reasoning?: string
@@ -139,6 +142,10 @@ export interface Settings {
   maxOutputTokens: number
   features: FeatureFlags
   group: GroupSettings
+  /** The one-time "You're using your ChatGPT plan" message was dismissed. */
+  chatgptWelcomeSeen?: boolean
+  /** The ChatGPT plan provider was added once for existing installs. */
+  chatgptOffered?: boolean
 }
 
 export type SettingsTab = 'providers' | 'features' | 'group' | 'general' | 'data' | 'about'

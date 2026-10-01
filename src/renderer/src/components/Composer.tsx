@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { ArrowUp, FastForward, Square } from 'lucide-react'
 import { continueGroup, sendPrompt, stop } from '../lib/engine'
+import { openExternal } from '../lib/platform'
+import { CHATGPT_USAGE_URL } from '../lib/providers/chatgpt'
 import type { Session } from '../lib/types'
 import { modelLabel, useFeatures, useStore } from '../store'
 import { Dot, cn } from './ui'
@@ -45,6 +47,9 @@ export function Composer() {
     return s?.kind === 'group' && s.messages.some((m) => m.role === 'assistant') && !running[id]
   })
   const canSend = text.trim().length > 0 && targets.length > 0 && busy.length === 0 && !blocked
+  // OpenAI's guidelines ask apps to show when a request will use the ChatGPT plan.
+  const chatgptProviders = new Set(providers.filter((p) => p.kind === 'chatgpt').map((p) => p.id))
+  const usesPlan = targets.some((id) => sessions[id]?.participants.some((p) => !p.muted && chatgptProviders.has(p.providerId)))
 
   useLayoutEffect(() => {
     const el = input.current
@@ -126,6 +131,14 @@ export function Composer() {
             {blocked ?? (busy.length ? 'Generating… press Esc to stop' : sendOnEnter ? 'Enter to send, Shift+Enter for a new line' : 'Ctrl+Enter to send')}
           </div>
           <div className="flex items-center gap-1.5">
+            {usesPlan && (
+              <span className="mr-1 hidden items-center gap-1 text-xs text-muted sm:inline-flex">
+                Using ChatGPT plan ·
+                <button type="button" onClick={() => openExternal(CHATGPT_USAGE_URL)} className="text-accent hover:underline">
+                  Manage usage
+                </button>
+              </span>
+            )}
             {groupTargets.length > 0 && busy.length === 0 && (
               <button
                 type="button"

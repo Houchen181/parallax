@@ -1,8 +1,8 @@
 {
   "name": "parallax",
   "productName": "Parallax",
-  "version": "0.1.0",
-  "description": "A desktop chat app for running Claude, GPT, Gemini and any OpenAI-compatible model side by side: broadcast one prompt to many sessions, compare the answers, or put several models in one group chat.",
+  "version": "0.2.0",
+  "description": "A desktop chat app for running Claude, GPT, Gemini and any OpenAI-compatible model side by side (with your API keys or your ChatGPT plan): broadcast one prompt to many sessions, compare the answers, or put several models in one group chat.",
   "author": "Houchen181",
   "license": "MIT",
   "homepage": "https://github.com/Houchen181/parallax",
@@ -38,6 +38,7 @@
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "idb-keyval": "^6.3.0",
+    "jose": "^6.2.12",
     "katex": "^0.18.10",
     "lucide-react": "^1.49.0",
     "react": "^19.3.0",

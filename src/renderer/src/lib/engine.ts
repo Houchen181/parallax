@@ -7,7 +7,7 @@ import { chatTurns, estimateTokens, groupTurns, parseMentions, stripSpeakerPrefi
 import { adapterFor } from './providers'
 import { DEMO_COMPARE_PROMPT, DEMO_GROUP_PROMPT } from './providers/demo'
 import { DEMO_MODELS, DEMO_PROVIDER_ID } from './providers/presets'
-import type { ChatResult } from './providers/types'
+import { ProviderError, type ChatResult } from './providers/types'
 import type { Participant } from './types'
 
 const controllers = new Map<string, AbortController>()
@@ -249,7 +249,12 @@ async function generate(sessionId: string, participant: Participant, signal: Abo
       store().patchMessage(sessionId, messageId, { status: 'stopped', metrics: { firstTokenMs, totalMs } })
     } else {
       console.error(err)
-      store().patchMessage(sessionId, messageId, { status: 'error', error: describeError(err), metrics: { firstTokenMs, totalMs } })
+      store().patchMessage(sessionId, messageId, {
+        status: 'error',
+        error: describeError(err),
+        errorCode: err instanceof ProviderError ? err.code : undefined,
+        metrics: { firstTokenMs, totalMs },
+      })
     }
   }
 }

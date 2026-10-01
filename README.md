@@ -21,6 +21,8 @@ in a single group chat and let them talk to each other.
 - **Bring your own key, any provider.** Anthropic (Claude), OpenAI (GPT), Google Gemini, OpenRouter, Groq,
   DeepSeek, Mistral, xAI, Together, local models through Ollama or LM Studio, and any server that speaks the
   OpenAI Chat Completions or Anthropic Messages API.
+- **Or use your ChatGPT plan.** In the desktop app, **Continue with ChatGPT** lets ChatGPT Plus and Pro
+  subscribers chat on their plan's usage instead of an API key.
 - **Split view.** Open up to six chats next to each other, each with its own model and history.
 - **Broadcast.** With several chats open, one message goes to all of them at once. A pane's antenna button
   takes it out of the broadcast.
@@ -41,9 +43,10 @@ in a single group chat and let them talk to each other.
 | ![Compare dialog](docs/screenshots/compare-dialog.png) | ![Group chat in dark mode](docs/screenshots/group-chat.png) |
 
 <details>
-<summary>Settings: providers and feature toggles</summary>
+<summary>Settings: providers, ChatGPT plan and feature toggles</summary>
 
 ![Provider settings](docs/screenshots/settings.png)
+![Signed in with a ChatGPT plan](docs/screenshots/chatgpt-plan.png)
 ![Feature toggles](docs/screenshots/features.png)
 
 </details>
@@ -68,6 +71,8 @@ Open <https://houchen181.github.io/parallax/>. It's the same app running in the 
 
 1. Open **Settings → Providers**, pick a provider and paste your API key. Parallax fetches that provider's
    model list automatically. To add another provider, click **Add provider** and choose one of the presets.
+   With a ChatGPT Plus or Pro plan, you can instead pick **ChatGPT plan** and click **Continue with ChatGPT**
+   (desktop app).
 2. Start a chat with **New chat** and pick a model at the top of the pane.
 3. To compare models, click **Compare models**, tick the models you want and type a question. Each model gets
    its own pane, and your messages go to all of them.
@@ -84,10 +89,18 @@ Keyboard shortcuts:
 
 **Ctrl+click** a chat in the sidebar to open it beside the current one.
 
-### Why API keys and not a ChatGPT or Claude subscription?
+### Using a subscription instead of an API key
 
-Third-party apps can't use consumer ChatGPT Plus or Claude Pro logins. API keys are the supported way to
-connect, and you pay the provider for what you use.
+- **ChatGPT Plus or Pro: yes, in the desktop app.** Parallax supports OpenAI's
+  [Sign in with ChatGPT plan usage](https://developers.openai.com/siwc/token-sharing-open-source) for
+  open-source, locally run apps.
+  - Chats with the "ChatGPT plan" models count toward your plan's limits and any weekly limit you set for
+    Parallax under [ChatGPT settings → Usage](https://chatgpt.com/settings/usage).
+  - On Plus, the five-hour limit is shared by every app that uses your plan.
+  - Parallax can't see your ChatGPT conversations or other account data.
+- **Claude Pro or Max: no.** Anthropic's terms don't allow third-party apps to sign in with Claude.ai accounts
+  or send requests through Free, Pro or Max plans. Use an API key from the
+  [Claude Console](https://console.anthropic.com/settings/keys) instead.
 
 ## Providers
 
@@ -95,6 +108,7 @@ connect, and you pay the provider for what you use.
 |---|---|---|
 | Anthropic | Messages API through the official `@anthropic-ai/sdk` | Thinking summaries, effort setting, prompt caching, refusal fallback |
 | OpenAI | Chat Completions | GPT and o-series models |
+| ChatGPT plan | Responses API, signed in with ChatGPT | Desktop app only; uses your Plus or Pro plan, with reasoning summaries |
 | Google Gemini | Gemini's OpenAI-compatible endpoint | |
 | OpenRouter, Groq, DeepSeek, Mistral, xAI, Together | Chat Completions | One preset each |
 | Ollama, LM Studio | Chat Completions on `localhost` | No key needed |
@@ -118,6 +132,11 @@ Notes on Claude:
   - Once saved, API keys stay in the Electron main process, encrypted with Windows DPAPI (`safeStorage`).
     The UI never gets them back, and the main process attaches them to outgoing requests itself.
   - Each key is locked to the origin it was saved for, so it can't be sent to any other host.
+  - Sign in with ChatGPT happens in your own browser, with PKCE and a one-time callback on `127.0.0.1`.
+    Parallax never sees your ChatGPT password.
+  - ChatGPT ID tokens are verified against OpenAI's published keys. Access and refresh tokens are encrypted
+    like API keys and only ever sent to `api.openai.com`.
+  - Signing out revokes the session with OpenAI.
 - **Model output is untrusted.**
   - Raw HTML isn't rendered, and remote images become plain links (no tracking pixels).
   - Links open in your browser, not in the app.
@@ -142,14 +161,15 @@ Other commands:
 | `npm run dev:web` | The browser version at http://localhost:5173 |
 | `npm test` | Unit tests (Vitest) |
 | `npm run typecheck` | TypeScript checks for the renderer and the Electron code |
-| `npm run mock` | A fake LLM server on port 8787 that speaks both APIs, for testing without keys (see `scripts/mock-llm-server.mjs`) |
+| `npm run mock` | A fake LLM server on port 8787 that speaks both APIs and fakes Sign in with ChatGPT, for testing without keys or accounts (see `scripts/mock-llm-server.mjs`) |
 | `npm run dist:win` | Builds the Windows installer into `release/` |
 | `npm run icon` | Regenerates the app icon |
 
 Project layout:
 
 ```
-src/main/        Electron main process: window, encrypted key store, streaming HTTP proxy
+src/main/        Electron main process: window, encrypted key store, streaming HTTP proxy,
+                 Sign in with ChatGPT (chatgpt.ts)
 src/preload/     The small, typed bridge exposed to the UI
 src/shared/      Types shared across processes
 src/renderer/    React UI

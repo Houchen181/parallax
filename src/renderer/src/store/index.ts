@@ -2,8 +2,9 @@ import { useMemo } from 'react'
 import { del as idbDel, get as idbGet, set as idbSet } from 'idb-keyval'
 import { create } from 'zustand'
 import { persist, type PersistStorage, type StorageValue } from 'zustand/middleware'
+import type { ChatGPTAccount } from '../../../shared/bridge'
 import { listSavedKeys, removeKey } from '../lib/keys'
-import { newId } from '../lib/platform'
+import { bridge, isDesktop, newId } from '../lib/platform'
 import { autoTitle } from '../lib/prompt'
 import {
   DEMO_PROVIDER_ID,
@@ -63,9 +64,14 @@ export interface AppState extends PersistedState {
   settingsTab: SettingsTab
   compareBroadcastId: string | null
   newCompareOpen: boolean
+  /** Sign in with ChatGPT accounts by provider id (desktop only). Not persisted. */
+  chatgptAccounts: Record<string, ChatGPTAccount>
+  chatgptWelcomeOpen: boolean
 
   finishHydration(): Promise<void>
   refreshKeys(): Promise<void>
+  refreshChatGPT(): Promise<void>
+  setChatGPTWelcomeOpen(open: boolean): void
 
   createSession(options: { kind: SessionKind; models?: ModelRef[]; placement?: Placement }): string
   updateSession(id: string, patch: Partial<Session>): void
@@ -114,18 +120,28 @@ export interface AppState extends PersistedState {
 // Selectors and helpers (usable outside React)
 // ---------------------------------------------------------------------------
 
-export function providerReady(state: Pick<AppState, 'savedKeys' | 'settings'>, provider: ProviderConfig | undefined): boolean {
-  if (!provider || !provider.enabled) return false
-  if (provider.kind === 'demo') return state.settings.features.demoProvider
-  if (!provider.baseUrl) return false
-  return !provider.requiresKey || provider.id in state.savedKeys
+export type ReadinessState = Pick<AppState, 'savedKeys' | 'settings' | 'chatgptAccounts'>
+
+export function providerReady(state: ReadinessState, provider: ProviderConfig | undefined): boolean {
+  return providerProblem(state, provider) === null
 }
 
 /** Why a provider cannot be used right now, or null when it can. */
-export function providerProblem(state: Pick<AppState, 'savedKeys' | 'settings'>, provider: ProviderConfig | undefined): string | null {
+export function providerProblem(state: ReadinessState, provider: ProviderConfig | undefined): string | null {
   if (!provider) return 'This model belongs to a provider that was removed. Pick another model.'
   if (!provider.enabled) return `${provider.name} is turned off in Settings → Providers.`
   if (provider.kind === 'demo') return state.settings.features.demoProvider ? null : 'The demo provider is turned off in Settings → Features.'
+  if (provider.kind === 'chatgpt') {
+    if (!isDesktop) return 'Signing in with ChatGPT needs the Parallax desktop app.'
+    const account = state.chatgptAccounts[provider.id]
+    if (!account?.signedIn) {
+      return account?.needsSignIn
+        ? 'Your ChatGPT sign-in has expired. Continue with ChatGPT in Settings → Providers.'
+        : 'Sign in with ChatGPT in Settings → Providers to use your plan.'
+    }
+    if (!account.planEnabled) return "ChatGPT plan use isn't enabled for this sign-in. Enable it in Settings → Providers."
+    return null
+  }
   if (!provider.baseUrl) return `Set a base URL for ${provider.name} in Settings → Providers.`
   if (provider.requiresKey && !(provider.id in state.savedKeys)) return `Add an API key for ${provider.name} in Settings → Providers.`
   return null
@@ -151,7 +167,7 @@ export function useFeatures(): FeatureFlags {
   return useMemo(() => effectiveFeatures(settings), [settings])
 }
 
-export function defaultModelRef(state: Pick<AppState, 'providers' | 'savedKeys' | 'settings'>): ModelRef | undefined {
+export function defaultModelRef(state: ReadinessState & Pick<AppState, 'providers'>): ModelRef | undefined {
   const wanted = state.settings.defaultModel
   if (wanted) {
     const provider = state.providers.find((p) => p.id === wanted.providerId)
@@ -188,12 +204,12 @@ export function makeParticipant(providers: ProviderConfig[], ref: ModelRef, exis
 
 const DATED_SNAPSHOT = /-(\d{4}-\d{2}-\d{2}|\d{8}|\d{4})$/
 
-function mergeModels(current: ModelInfo[], fetched: ModelInfo[]): ModelInfo[] {
+function mergeModels(current: ModelInfo[], fetched: ModelInfo[], hideSnapshots: boolean): ModelInfo[] {
   const previous = new Map(current.map((m) => [m.id, m]))
   const merged = fetched.map((m) => {
     const old = previous.get(m.id)
     // Dated snapshots start hidden to keep the picker short; aliases cover them.
-    const hidden = old ? old.hidden : DATED_SNAPSHOT.test(m.id) && fetched.length > 8
+    const hidden = old ? old.hidden : hideSnapshots && DATED_SNAPSHOT.test(m.id) && fetched.length > 8
     return { ...m, hidden }
   })
   const custom = current.filter((m) => m.custom && !fetched.some((f) => f.id === m.id))
@@ -277,6 +293,8 @@ export const useStore = create<AppState>()(
       settingsTab: 'providers',
       compareBroadcastId: null,
       newCompareOpen: false,
+      chatgptAccounts: {},
+      chatgptWelcomeOpen: false,
 
       async finishHydration() {
         const state = get()
@@ -287,6 +305,16 @@ export const useStore = create<AppState>()(
           ...state.settings,
           features: { ...DEFAULT_SETTINGS.features, ...state.settings.features },
           group: { ...DEFAULT_SETTINGS.group, ...state.settings.group },
+        }
+        // Installs from before Sign in with ChatGPT existed get its provider once.
+        if (isDesktop && !settings.chatgptOffered) {
+          const preset = PRESETS.find((p) => p.kind === 'chatgpt')
+          if (preset && !providers.some((p) => p.kind === 'chatgpt')) {
+            const provider = providerFromPreset(preset, providers.some((p) => p.id === preset.id) ? `${preset.id}-${newId().slice(0, 8)}` : preset.id)
+            const after = providers.findIndex((p) => p.id === 'openai')
+            providers = after >= 0 ? [...providers.slice(0, after + 1), provider, ...providers.slice(after + 1)] : [provider, ...providers]
+          }
+          settings.chatgptOffered = true
         }
         // Anything still "streaming" was interrupted when the app last closed.
         const sessions: Record<string, Session> = {}
@@ -306,11 +334,12 @@ export const useStore = create<AppState>()(
           if (isEmpty(session) && !panes.includes(session.id)) delete sessions[session.id]
         }
         set({ providers, settings, sessions, panes })
-        // Keys decide which providers are usable, so load them before picking models.
+        // Keys and sign-ins decide which providers are usable, so load them before picking models.
         try {
-          set({ savedKeys: await listSavedKeys() })
+          const [savedKeys, chatgptAccounts] = await Promise.all([listSavedKeys(), loadChatGPTAccounts()])
+          set({ savedKeys, chatgptAccounts })
         } catch (err) {
-          console.error('Could not read saved API keys', err)
+          console.error('Could not read saved credentials', err)
         }
         if (panes.length === 0) get().createSession({ kind: 'chat', placement: 'replace' })
         else set({ focusedPane: state.focusedPane && panes.includes(state.focusedPane) ? state.focusedPane : panes[0] })
@@ -324,18 +353,21 @@ export const useStore = create<AppState>()(
           console.error('Could not read saved API keys', err)
           return
         }
-        // Unused chats that only had the demo model (or none) switch to a real model
-        // as soon as one becomes available.
-        const state = get()
-        const ref = defaultModelRef(state)
-        if (!ref || ref.providerId === DEMO_PROVIDER_ID) return
-        for (const id of state.panes) {
-          const session = state.sessions[id]
-          const placeholder = !session?.participants[0] || session.participants[0].providerId === DEMO_PROVIDER_ID
-          if (session && session.kind === 'chat' && session.messages.length === 0 && placeholder) {
-            get().setChatModel(id, ref)
-          }
+        adoptRealModel()
+      },
+
+      async refreshChatGPT() {
+        try {
+          set({ chatgptAccounts: await loadChatGPTAccounts() })
+        } catch (err) {
+          console.error('Could not read ChatGPT accounts', err)
+          return
         }
+        adoptRealModel()
+      },
+
+      setChatGPTWelcomeOpen(open) {
+        set({ chatgptWelcomeOpen: open })
       },
 
       createSession({ kind, models, placement = 'replace' }) {
@@ -532,18 +564,31 @@ export const useStore = create<AppState>()(
 
       removeProvider(id) {
         if (id === DEMO_PROVIDER_ID) return
+        const provider = get().providers.find((p) => p.id === id)
         set((s) => {
           const savedKeys = { ...s.savedKeys }
           delete savedKeys[id]
           return { providers: s.providers.filter((p) => p.id !== id), savedKeys }
         })
-        void removeKey(id).catch((err: unknown) => console.error('Could not remove API key', err))
+        if (provider?.kind === 'chatgpt') {
+          // Revokes the session with OpenAI and drops the registration.
+          void bridge?.chatgpt
+            .forget(id)
+            .then(() => get().refreshChatGPT())
+            .catch((err: unknown) => console.error('Could not sign out of ChatGPT', err))
+        } else {
+          void removeKey(id).catch((err: unknown) => console.error('Could not remove API key', err))
+        }
       },
 
       setProviderModels(id, models) {
         set((s) => ({
-          providers: s.providers.map((p) => (p.id === id ? { ...p, models: mergeModels(p.models, models) } : p)),
+          providers: s.providers.map((p) =>
+            p.id === id ? { ...p, models: mergeModels(p.models, models, p.kind !== 'chatgpt') } : p,
+          ),
         }))
+        // A provider that just got its model list may be the first real one.
+        adoptRealModel()
       },
 
       updateSettings(patch) {
@@ -627,6 +672,29 @@ export const useStore = create<AppState>()(
     },
   ),
 )
+
+async function loadChatGPTAccounts(): Promise<Record<string, ChatGPTAccount>> {
+  if (!bridge) return {}
+  const accounts = await bridge.chatgpt.accounts()
+  return Object.fromEntries(accounts.map((a) => [a.providerId, a]))
+}
+
+/**
+ * Unused chats that only had the demo model (or none) switch to a real model as
+ * soon as one becomes available (after saving a key or signing in).
+ */
+function adoptRealModel() {
+  const state = useStore.getState()
+  const ref = defaultModelRef(state)
+  if (!ref || ref.providerId === DEMO_PROVIDER_ID) return
+  for (const id of state.panes) {
+    const session = state.sessions[id]
+    const placeholder = !session?.participants[0] || session.participants[0].providerId === DEMO_PROVIDER_ID
+    if (session && session.kind === 'chat' && session.messages.length === 0 && placeholder) {
+      state.setChatModel(id, ref)
+    }
+  }
+}
 
 /** Sessions and the providers they need, shaped for export (API keys are never included). */
 export function exportSnapshot() {

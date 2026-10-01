@@ -13,8 +13,9 @@ export function useModelGroups() {
   const providers = useStore((s) => s.providers)
   const savedKeys = useStore((s) => s.savedKeys)
   const settings = useStore((s) => s.settings)
+  const chatgptAccounts = useStore((s) => s.chatgptAccounts)
   return useMemo(() => {
-    const state = { savedKeys, settings }
+    const state = { savedKeys, settings, chatgptAccounts }
     const ready: ModelGroup[] = []
     const unavailable: ProviderConfig[] = []
     for (const provider of providers) {
@@ -30,7 +31,7 @@ export function useModelGroups() {
     // Real providers first, the demo last.
     ready.sort((a, b) => Number(a.provider.kind === 'demo') - Number(b.provider.kind === 'demo'))
     return { ready, unavailable }
-  }, [providers, savedKeys, settings])
+  }, [providers, savedKeys, settings, chatgptAccounts])
 }
 
 function matches(query: string, provider: ProviderConfig, model: ModelInfo) {
@@ -132,7 +133,9 @@ export function ModelPicker({
               >
                 <KeyRound className="size-3.5" />
                 <span className="flex-1 truncate">{provider.name}</span>
-                <span className="text-xs text-accent">{provider.models.length || !provider.requiresKey ? 'Set up' : 'Add key'}</span>
+                <span className="text-xs text-accent">
+                  {provider.kind === 'chatgpt' ? 'Sign in' : provider.models.length || !provider.requiresKey ? 'Set up' : 'Add key'}
+                </span>
               </button>
             ))}
           </div>
