@@ -1,0 +1,26 @@
+appId: io.github.houchen181.parallax
+productName: Parallax
+copyright: Copyright (c) 2026 Houchen181
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/main/**
+  - dist/preload/**
+  - dist/renderer/**
+  - package.json
+asar: true
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Parallax
+  artifactName: Parallax-Setup-${version}.exe
+publish: null
