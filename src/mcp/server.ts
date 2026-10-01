@@ -36,7 +36,11 @@ const INSTRUCTIONS = `Parallax asks other AI models (Claude, GPT, Gemini, OpenRo
 - The other models see only the prompt you send, not this conversation, so include the context they need.
 - Long jobs return what has finished plus a job_id; call get_results to collect the rest.
 - Report each model's answer faithfully and never invent a reply for a model that failed.
-- If no provider is set up, call configure_keys. Never ask the user to paste an API key into the chat.`
+- If no provider is set up, call configure_keys. Never ask the user to paste an API key into the chat.
+- In Claude Code, Claude models can also run as parallax:panelist subagents on the user's Claude plan, with no API key (see the parallax skill).`
+
+const CLAUDE_PLAN_HINT =
+  "Claude models without an API key: in Claude Code, run them as parallax:panelist subagents (one per model, e.g. model opus or sonnet). They use the user's Claude plan. See the parallax skill."
 
 function numberSetting(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number, max: number): number {
   const value = Number(envValue(env, name))
@@ -49,9 +53,12 @@ function text(content: string, isError = false): CallToolResult {
 
 function readySummary(registry: Registry): string {
   const ready = registry.ready()
-  return ready.length
-    ? `Set up: ${ready.map((p) => p.id).join(', ')}. Call list_models for model ids.`
-    : 'No provider is set up yet. Call configure_keys so the user can add API keys.'
+  const keyed = ready.filter((p) => !p.keyless).map((p) => p.id)
+  const local = ready.filter((p) => p.keyless).map((p) => p.id)
+  const localNote = local.length ? ` Without a key, if they're running: ${local.join(', ')}.` : ''
+  return keyed.length
+    ? `Set up: ${keyed.join(', ')}.${localNote} Call list_models for model ids.`
+    : `No provider has an API key yet; call configure_keys so the user can add one.${localNote}`
 }
 
 function describeSource(state: ProviderState): string {
@@ -77,6 +84,13 @@ export function createParallaxServer(options: ParallaxServerOptions = {}): Paral
   let keyPage: KeyPage | undefined
 
   const server = new McpServer({ name: 'parallax', title: 'Parallax', version: __APP_VERSION__ }, { instructions: INSTRUCTIONS })
+
+  /** In Claude Code, points a Claude model that has no API key at the subagent route. */
+  function withPlanHint(ref: string, error: string): string {
+    const isClaude = /^(anthropic:|claude:|claude-)/i.test(ref.trim())
+    const inClaudeCode = server.server.getClientVersion()?.name === 'claude-code'
+    return isClaude && inClaudeCode && registry.get('anthropic')?.problem ? `${error} ${CLAUDE_PLAN_HINT}` : error
+  }
 
   /** Resolves model references, first fetching (briefly) any model list not cached yet, for names and capabilities. */
   async function resolveAll(refs: string[]) {
@@ -170,9 +184,13 @@ export function createParallaxServer(options: ParallaxServerOptions = {}): Paral
       else if (needle) out.push(`No models match "${search}".`)
       if (notSetUp.length && !needle) out.push(`Not set up: ${notSetUp.join(', ')}. The user can add keys with configure_keys.`)
       if (notRunning.length && !needle) out.push(`Not running on this computer: ${notRunning.join(', ')}.`)
-      if (!registry.ready().length) {
+      const anthropic = registry.get('anthropic')
+      if (anthropic?.problem && server.server.getClientVersion()?.name === 'claude-code' && (!provider || anthropic === providers[0])) {
+        out.push(CLAUDE_PLAN_HINT)
+      }
+      if (!provider && !listings.some(({ listing }) => listing?.models)) {
         out.push(
-          'No provider is set up yet, so call configure_keys to let the user add API keys in their browser. ' +
+          'No provider can be reached yet, so call configure_keys to let the user add API keys in their browser. ' +
             'To try the tools without keys, the simulated models demo:demo-concise, demo:demo-thorough and demo:demo-skeptic give canned replies (not real model output).',
         )
       }
@@ -208,7 +226,7 @@ export function createParallaxServer(options: ParallaxServerOptions = {}): Paral
       if (!refs.length) return text(`Say which models to ask, as provider:model ids. ${readySummary(registry)}`, true)
       const resolved = await resolveAll(refs)
       const targets = resolved.flatMap(({ result }) => ('error' in result ? [] : [result]))
-      const problems = resolved.flatMap(({ ref, result }) => ('error' in result ? [{ ref, error: result.error }] : []))
+      const problems = resolved.flatMap(({ ref, result }) => ('error' in result ? [{ ref, error: withPlanHint(ref, result.error) }] : []))
       if (!targets.length) return text(`${problems.map((p) => p.error).join('\n')}\n\n${readySummary(registry)}`, true)
       const job = jobs.add(
         new AskJob({
@@ -253,7 +271,7 @@ export function createParallaxServer(options: ParallaxServerOptions = {}): Paral
     async ({ topic, participants, rounds, order, system, max_output_tokens_per_turn }, extra) => {
       await registry.refresh()
       const resolved = (await resolveAll(participants.map((p) => p.model))).map(({ result }, i) => ({ p: participants[i], result }))
-      const problems = resolved.flatMap(({ result }) => ('error' in result ? [result.error] : []))
+      const problems = resolved.flatMap(({ p, result }) => ('error' in result ? [withPlanHint(p.model, result.error)] : []))
       if (problems.length) return text(`${problems.join('\n')}\n\n${readySummary(registry)}`, true)
       const taken = new Set<string>()
       const members: GroupMember[] = resolved.map(({ p, result }) => {

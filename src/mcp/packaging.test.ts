@@ -79,6 +79,13 @@ describe('plugin packages', () => {
   it('list the tools the server registers', () => {
     expect(mcpb.tools.map((t: { name: string }) => t.name).sort()).toEqual(TOOLS)
   })
+
+  it('ship the panelist subagent that the skill names', () => {
+    const agent = readFileSync('plugins/parallax/agents/panelist.md', 'utf8')
+    expect(agent).toMatch(/^---\nname: panelist\n/)
+    expect(agent).toMatch(/\ntools: Read, Grep, Glob\n/)
+    expect(readFileSync('plugins/parallax/skills/parallax/SKILL.md', 'utf8')).toContain('parallax:panelist')
+  })
 })
 
 describe('bundled server over stdio', () => {

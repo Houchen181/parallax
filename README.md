@@ -137,7 +137,8 @@ Keyboard shortcuts:
   - Parallax can't see your ChatGPT conversations or other account data.
 - **Claude Pro or Max: no.** Anthropic's terms don't allow third-party apps to sign in with Claude.ai accounts
   or send requests through Free, Pro or Max plans. Use an API key from the
-  [Claude Console](https://console.anthropic.com/settings/keys) instead.
+  [Claude Console](https://console.anthropic.com/settings/keys) instead. In Claude Code, the plugin can compare
+  Claude models on your plan another way; see [Using your Claude plan](#using-your-claude-plan).
 
 ## Use Parallax in Claude and Codex
 
@@ -182,7 +183,7 @@ All of them are optional, and they're stored in your system's secure storage. To
 2. Open it with Claude Desktop by double-clicking it. The Microsoft Store version of Claude for Windows doesn't
    open `.mcpb` files from Explorer, so with that version run this in a terminal instead:
    ```powershell
-   claude-desktop "$HOME\Downloads\Parallax-0.4.1.mcpb"
+   claude-desktop "$HOME\Downloads\Parallax-0.4.2.mcpb"
    ```
    Change the file name to match the one you downloaded.
 3. Click **Install**, then enter the API keys you want in the extension's settings. You can also add keys later
@@ -224,6 +225,17 @@ Some notes:
   the key page.
 - Ollama and LM Studio need no key; their models show up while those apps are running.
 - Sign in with ChatGPT stays in the app. The plugin needs an OpenAI API key for GPT models.
+
+### Using your Claude plan
+
+Parallax can't send its own requests through a Claude Pro, Max, Team or Enterprise plan. Anthropic doesn't allow
+third-party tools to use plan usage, and Claude Code doesn't lend its model to plugins.
+
+In Claude Code you can still compare Claude models on your plan. The plugin includes a `panelist` subagent, and
+its skill has Claude run each Claude model as one: for example, *"Ask Opus and Sonnet side by side whether this
+design is sound."* Subagents count toward your plan's usage limits like the rest of your Claude Code work.
+Models from other providers still go through Parallax and need their own keys, except Ollama and LM Studio
+models, which run on your computer for free.
 
 <details>
 <summary>Advanced settings (environment variables)</summary>

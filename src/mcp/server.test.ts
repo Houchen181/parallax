@@ -29,10 +29,11 @@ function baseEnv(): NodeJS.ProcessEnv {
   }
 }
 
-async function connect(options: ParallaxServerOptions = {}) {
-  const dataDir = options.dataDir ?? (await mkdtemp(join(dir, 'data-')))
-  const parallax = createParallaxServer({ env: baseEnv(), dataDir, openUrl: async () => undefined, waitMs: 20_000, ...options })
-  const client = new Client({ name: 'parallax-test', version: '1.0.0' })
+async function connect(options: ParallaxServerOptions & { clientName?: string } = {}) {
+  const { clientName = 'parallax-test', ...serverOptions } = options
+  const dataDir = serverOptions.dataDir ?? (await mkdtemp(join(dir, 'data-')))
+  const parallax = createParallaxServer({ env: baseEnv(), dataDir, openUrl: async () => undefined, waitMs: 20_000, ...serverOptions })
+  const client = new Client({ name: clientName, version: '1.0.0' })
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
   await parallax.server.connect(serverSide)
   await client.connect(clientSide)
@@ -161,6 +162,24 @@ describe('Parallax MCP server', () => {
     expect(text).toContain('Speaking as **Mock Claude**')
     expect(text).toContain('Speaking as **Skeptic**')
     expect(text).toContain('[Mock Claude]: Speaking as **Mock Claude**')
+  })
+
+  it('says when nothing is reachable, and points Claude Code at subagents for Claude models', async () => {
+    const env = { PARALLAX_OLLAMA_BASE_URL: CLOSED, PARALLAX_LMSTUDIO_BASE_URL: CLOSED }
+    const inClaudeCode = await connect({ env, clientName: 'claude-code' })
+    const listed = await call(inClaudeCode.client, 'list_models')
+    expect(listed.text).toContain('No provider can be reached yet')
+    expect(listed.text).toContain('parallax:panelist')
+
+    const asked = await call(inClaudeCode.client, 'ask_models', { prompt: 'Hi', models: ['anthropic:claude-opus-5-5'] })
+    expect(asked.isError).toBe(true)
+    expect(asked.text).toContain('parallax:panelist')
+    expect(asked.text).toContain('No provider has an API key yet')
+    expect(asked.text).toContain('Without a key, if they\'re running: ollama, lmstudio')
+
+    // Other hosts have no Claude subagents to offer.
+    const elsewhere = await connect({ env, clientName: 'codex-mcp-client' })
+    expect((await call(elsewhere.client, 'list_models')).text).not.toContain('panelist')
   })
 
   it('refuses a discussion with a participant it cannot reach', async () => {

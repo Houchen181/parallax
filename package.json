@@ -1,7 +1,7 @@
 {
   "name": "parallax",
   "productName": "Parallax",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A desktop chat app for running Claude, GPT, Gemini and any OpenAI-compatible model side by side (with your API keys or your ChatGPT plan): broadcast one prompt to many sessions, compare the answers, or put several models in one group chat.",
   "author": "Houchen181",
   "license": "MIT",
